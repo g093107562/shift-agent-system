@@ -8,7 +8,7 @@ st.markdown("本系統支援自訂部門名稱、員工動態管理、安全金�
 
 # 初始化 Session State（預設部門與員工清單）
 if "departments" not in st.session_state:
-    st.session_state.departments = ["管理部", "技術支援組", "營運中心", "品管課"]
+    st.session_state.departments = ["常銘", "暖惒"]
 
 if "employees_db" not in st.session_state:
     st.session_state.employees_db = [
