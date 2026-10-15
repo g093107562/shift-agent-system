@@ -30,7 +30,7 @@ EMPLOYEE_DEPT_GROUP = {
 }
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統已完整恢復**輪班調假與跨部門代班協調機制**，並保有 AI 智慧數據分析與同組互斥防撞功能！")
+st.markdown("本系統已修復代班與換班按鈕的資料庫寫入邏輯，點擊後將立即更新並即時生效！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -70,7 +70,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已完整恢復輪班調假與代班協調功能。您可以隨時問我：「琪11月休幾天？」或進行排假與調班！"}
+        {"role": "assistant", "content": "您好！調假與代班按鈕的寫入邏輯已修復，現在點擊將立即生效並更新日曆！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -181,7 +181,7 @@ with col1:
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
             st.rerun()
 
-    # 🤝 完整恢復的輪班調假與代班協調機制
+    # 🤝 修正後的跨部門代班與同組換班/調假機制
     st.markdown("---")
     st.subheader("🤝 跨部門代班與同組換班/調假機制")
     st.markdown("如果想和同組夥伴在同一天休假，或需進行輪班調假，可透過暖惒部門支援代班：")
@@ -199,14 +199,32 @@ with col1:
         
         sub_btn = st.form_submit_button("執行調假/代班申請")
         if sub_btn:
+            if target_date not in st.session_state.daily_leaves:
+                st.session_state.daily_leaves[target_date] = []
+                
             if action_type == "申請同日休假（需暖惒代班支援）":
+                # 讓當前使用者休假，並記錄暖惒支援代班
                 if current_user not in st.session_state.daily_leaves[target_date]:
                     st.session_state.daily_leaves[target_date].append(current_user)
                 st.success(f"✅ 已成功送出！【{target_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
                 st.rerun()
             else:
-                st.success(f"✅ 已完成換班協調：{target_date} 調度成功！")
-                st.rerun()
+                # 換班邏輯：把當天原本休假的同組夥伴（例如琪）換成上班，換成當前使用者（安）休假
+                off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
+                if off_colleagues_on_day:
+                    target_colleague = off_colleagues_on_day[0]
+                    # 移除原本休假的同事，加入當前使用者
+                    st.session_state.daily_leaves[target_date].remove(target_colleague)
+                    if current_user not in st.session_state.daily_leaves[target_date]:
+                        st.session_state.daily_leaves[target_date].append(current_user)
+                    st.success(f"✅ 換班成功！在【{target_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
+                    st.rerun()
+                else:
+                    # 如果當天沒有同組同事休假，則直接將當前使用者加入休假
+                    if current_user not in st.session_state.daily_leaves[target_date]:
+                        st.session_state.daily_leaves[target_date].append(current_user)
+                    st.success(f"✅ 已成功完成 {target_date} 的調假申請！")
+                    st.rerun()
 
 with col2:
     st.header("💬 AI Agent 智慧互動區")
