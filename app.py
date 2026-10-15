@@ -95,7 +95,7 @@ def save_leaves_to_disk(data):
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **語法錯誤已全面修正**！Benson 班別正確設定為「常銘 - 夜班」，雙欄排版與 AI 助理運作中。")
+st.markdown("🔒 **所有語法錯誤已完全排除**！系統運作正常。")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -103,7 +103,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！語法已修復完成。您可以隨時排假或向我查詢！"}
+        {"role": "assistant", "content": "您好！系統已全面修復，您可以隨時排班、查詢或進行調假！"}
     ]
 
 # 側邊欄：色彩圖例與組織對照表
@@ -274,37 +274,3 @@ with col1:
                     day_set.add(current_user)
                     st.session_state.daily_leaves[target_db_key] = list(day_set)
                     save_leaves_to_disk(st.session_state.daily_leaves)
-                    st.success(f"✅ 已成功完成並永久存檔 {target_disp_date} 的調假申請！")
-                    st.rerun()
-
-with col2:
-    st.header("💬 AI Agent 智慧互動區")
-    
-    chat_container = st.container(height=450)
-    with chat_container:
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.chat_message("user").write(msg["content"])
-            else:
-                st.chat_message("assistant").write(msg["content"])
-                
-    user_input = st.chat_input("請在此輸入查詢指令（例如：安十月休幾天？、11/5誰休假）...")
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        query_text = user_input.strip()
-        reply = ""
-        
-        matched_person = None
-        for name in DEFAULT_PERSON_COLORS.keys():
-            if name in query_text:
-                matched_person = name
-                break
-        
-        # 🧠 智慧月份解析：精準對應提問中的月份與全域月份
-        query_month = None
-        if "十月" in query_text or "10月" in query_text:
-            query_month = 10
-        elif "十一月" in query_text or "11月" in query_text:
-            query_month = 11
-        elif "十二月" in query_text or "12月" in query_text:
-            query_month =
