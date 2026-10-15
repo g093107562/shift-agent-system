@@ -13,7 +13,7 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv(
     "Bmzz64hvWEWFPbX8NpURapNhaPbSGA8ro5Mp4AufZZfhvk2jqTGooqTMSS+1IZwc8AogRt8Dq3qOhBsl6C4hovVCEU4FTVmZCsQVXuUKrutWEOXBjyVvHXyYQdgqDtzH3gu18dRQCB1JXMwDu6AxHHyBd04t89/10/w1cDnyilFU="
 )
 # 請填入您的 Channel Secret
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "您的_Channel_Secret")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "1c9396bd71bd481688f1325f41170ad8")
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
