@@ -18,7 +18,7 @@ DEFAULT_PERSON_COLORS = {
 }
 
 st.title("🏢 企業級 24/7 排假表與輪班 AI Agent 系統")
-st.markdown("本系統已完全對應您親自提供的 10 月份每日真實休假名單！")
+st.markdown("本系統已修正 10/4 正確休假名單（萱、淵、慈、琪），並新增「即時修改假表」面板，隨時修正超方便！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -39,13 +39,13 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 10月精準真實假表資料庫（完全對應您的輸入）
+# 🧠 10月精準真實假表資料庫（10/4 已修正為 萱、淵、慈、琪）
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
         "10/1": ["萱", "安", "Benson", "孟"],
         "10/2": ["聖", "安", "Benson", "孟"],
         "10/3": ["聖", "淵", "安", "慈"],
-        "10/4": ["萱", "淵", "慈"],
+        "10/4": ["萱", "淵", "慈", "琪"],  # 已修正為琪
         "10/5": ["萱", "安", "Benson", "孟"],
         "10/6": ["聖", "安", "Benson", "孟"],
         "10/7": ["聖", "安", "淵", "慈"],
@@ -77,7 +77,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！10 月份真實休假資料已完全依照您的輸入更新完畢！"}
+        {"role": "assistant", "content": "您好！10 月份假表已更新，10/4 已修正為萱、淵、慈、琪休假！"}
     ]
 
 # 側邊欄：色彩圖例與金鑰保護
@@ -167,23 +167,19 @@ with col1:
             st.success(f"🎉 成功新增【{new_name}】至【{selected_dept}】！")
             st.rerun()
             
-    st.markdown("### 👥 現有員工總覽")
-    if not st.session_state.employees_db:
-        st.info("目前沒有員工資料。")
-    else:
-        for idx, emp in enumerate(st.session_state.employees_db):
-            c_cols = st.columns([3, 1])
-            with c_cols[0]:
-                c = st.session_state.person_colors.get(emp['name'], "#888888")
-                if emp['dept'] == "常銘":
-                    st.markdown(f'🔵 **[常銘] <span style="color:{c}; font-weight:bold;">{emp["name"]}</span>** | 🕒 {emp["group"]}', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'🟢 **[暖惒] <span style="color:{c}; font-weight:bold;">{emp["name"]}</span>** | 🕒 {emp["group"]}', unsafe_allow_html=True)
-            with c_cols[1]:
-                if st.button("🗑️ 刪除", key=f"del_{idx}"):
-                    st.session_state.employees_db.pop(idx)
-                    st.success(f"已刪除：{emp['name']}")
-                    st.rerun()
+    st.markdown("---")
+    st.header("✏️ 管理員即時修改假表")
+    with st.form("quick_edit_form"):
+        edit_day = st.selectbox("選擇要修改的日期", [f"10/{d}" for d in range(1, 32)])
+        all_staff = list(DEFAULT_PERSON_COLORS.keys())
+        current_off = st.session_state.daily_leaves.get(edit_day, [])
+        selected_off = st.multiselect("勾選當天休假人員（應選 4 人）", all_staff, default=current_off)
+        update_btn = st.form_submit_button("更新該日假表")
+        
+        if update_btn:
+            st.session_state.daily_leaves[edit_day] = selected_off
+            st.success(f"✅ 成功更新 {edit_day} 的休假名單為：{', '.join(selected_off)}")
+            st.rerun()
 
 with col2:
     st.header("💬 AI Agent 智慧互動區")
@@ -196,7 +192,7 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：10/1誰休假）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：10/4誰休假）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
@@ -232,7 +228,7 @@ with col2:
             else:
                 reply = f"❌ 找不到 {date_key} 的假表記錄。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「10/1誰休假」）！"
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「10/4誰休假」）！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
