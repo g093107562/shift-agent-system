@@ -18,7 +18,7 @@ DEFAULT_PERSON_COLORS = {
 }
 
 st.title("🏢 企業級 24/7 排假表與輪班 AI Agent 系統")
-st.markdown("本系統已精準簡化，專注對應 10 月份真實排假表與 4 休 4 上鐵律！")
+st.markdown("本系統已完全對應您親自提供的 10 月份每日真實休假名單！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -39,22 +39,45 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 專注 10 月真實假表資料庫（對應截圖 10）
+# 🧠 10月精準真實假表資料庫（完全對應您的輸入）
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
-        "10/1": ["安", "聖", "淵", "慈"], "10/2": ["琪", "孟", "Benson", "萱"], "10/3": ["萱", "慈", "淵", "聖"], "10/4": ["安", "聖", "琪", "孟"],
-        "10/5": ["琪", "孟", "淵", "Benson"], "10/6": ["萱", "慈", "Benson", "安"], "10/7": ["安", "聖", "淵", "琪"], "10/8": ["琪", "孟", "萱", "慈"],
-        "10/9": ["萱", "慈", "Benson", "安"], "10/10": ["安", "聖", "淵", "孟"], "10/11": ["琪", "孟", "慈", "萱"], "10/12": ["萱", "慈", "Benson", "淵"],
-        "10/13": ["安", "聖", "淵", "琪"], "10/14": ["琪", "孟", "慈", "安"], "10/15": ["萱", "慈", "Benson", "聖"], "10/16": ["安", "聖", "淵", "孟"],
-        "10/17": ["琪", "孟", "萱", "慈"], "10/18": ["萱", "慈", "Benson", "淵"], "10/19": ["安", "聖", "淵", "琪"], "10/20": ["琪", "孟", "安", "慈"],
-        "10/21": ["萱", "慈", "Benson", "聖"], "10/22": ["安", "聖", "淵", "孟"], "10/23": ["琪", "孟", "萱", "慈"], "10/24": ["萱", "慈", "Benson", "淵"],
-        "10/25": ["安", "聖", "淵", "琪"], "10/26": ["琪", "孟", "安", "慈"], "10/27": ["萱", "慈", "Benson", "聖"], "10/28": ["安", "聖", "淵", "孟"],
-        "10/29": ["琪", "孟", "萱", "慈"], "10/30": ["萱", "慈", "Benson", "淵"], "10/31": ["安", "聖", "琪", "孟"]
+        "10/1": ["萱", "安", "Benson", "孟"],
+        "10/2": ["聖", "安", "Benson", "孟"],
+        "10/3": ["聖", "淵", "安", "慈"],
+        "10/4": ["萱", "淵", "慈"],
+        "10/5": ["萱", "安", "Benson", "孟"],
+        "10/6": ["聖", "安", "Benson", "孟"],
+        "10/7": ["聖", "安", "淵", "慈"],
+        "10/8": ["聖", "琪", "淵", "慈"],
+        "10/9": ["聖", "琪", "Benson", "孟"],
+        "10/10": ["萱", "琪", "Benson", "孟"],
+        "10/11": ["萱", "淵", "慈", "琪"],
+        "10/12": ["萱", "淵", "慈", "安"],
+        "10/13": ["聖", "淵", "慈", "安"],
+        "10/14": ["聖", "琪", "Benson", "孟"],
+        "10/15": ["聖", "琪", "Benson", "孟"],
+        "10/16": ["安", "萱", "Benson", "慈"],
+        "10/17": ["安", "萱", "淵", "慈"],
+        "10/18": ["淵", "琪", "孟", "聖"],
+        "10/19": ["淵", "琪", "孟", "聖"],
+        "10/20": ["萱", "琪", "Benson", "慈"],
+        "10/21": ["萱", "安", "Benson", "慈"],
+        "10/22": ["孟", "安", "Benson", "聖"],
+        "10/23": ["孟", "安", "淵", "聖"],
+        "10/24": ["萱", "琪", "淵", "慈"],
+        "10/25": ["萱", "琪", "淵", "慈"],
+        "10/26": ["萱", "淵", "安", "孟"],
+        "10/27": ["淵", "安", "聖", "慈"],
+        "10/28": ["琪", "淵", "聖", "慈"],
+        "10/29": ["萱", "琪", "Benson", "孟"],
+        "10/30": ["萱", "琪", "Benson", "孟"],
+        "10/31": ["琪", "Benson", "孟", "聖"]
     }
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已精簡，目前專注於 10 月份真實假表與 4 休 4 上查詢！"}
+        {"role": "assistant", "content": "您好！10 月份真實休假資料已完全依照您的輸入更新完畢！"}
     ]
 
 # 側邊欄：色彩圖例與金鑰保護
@@ -80,7 +103,7 @@ selected_month = st.selectbox("選擇要檢視的月份", ["10月 (2026)"])
 month_num = 10
 year_num = 2026
 
-st.markdown(f"### 🗓️ {year_num}年 10月 每日排假一覽表（固定 4人休 / 4人上班）")
+st.markdown(f"### 🗓️ {year_num}年 10月 每日排假一覽表")
 
 # 顯示星期表頭 (週日至週六)
 week_days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"]
@@ -171,45 +194,4 @@ with col2:
             if msg["role"] == "user":
                 st.chat_message("user").write(msg["content"])
             else:
-                st.chat_message("assistant").write(msg["content"])
-                
-    user_input = st.chat_input("請在此輸入查詢指令（例如：10/1誰休假）...")
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        
-        query_text = user_input.strip()
-        reply = ""
-        
-        date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
-        
-        if date_match:
-            month, day = date_match.groups()
-            date_key = f"{month}/{day}"
-            
-            if date_key in st.session_state.daily_leaves:
-                off_list = list(set(st.session_state.daily_leaves[date_key]))
-                all_people = list(st.session_state.person_colors.keys())
-                working_list = [p for p in all_people if p not in off_list]
-                
-                target_name = None
-                for name in all_people:
-                    if name in query_text:
-                        target_name = name
-                        break
-                
-                if target_name:
-                    if target_name in off_list:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】固定休假 🌴。"
-                    else:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】需要上班 💼！"
-                else:
-                    reply = f"📅 **{date_key} 班表查詢結果（4休4上）**\n\n"
-                    reply += f"💼 **上班人員（4人）**：{', '.join(working_list)}\n"
-                    reply += f"🌴 **休假人員（4人）**：{', '.join(off_list)}"
-            else:
-                reply = f"❌ 找不到 {date_key} 的假表記錄。"
-        else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「10/1誰休假」）！"
-
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-        st.rerun()
+                st.chat_message("
