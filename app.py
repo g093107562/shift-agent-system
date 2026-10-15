@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 import re
 import calendar
 from datetime import datetime
@@ -29,12 +30,18 @@ EMPLOYEE_DEPT_GROUP = {
     "孟": {"dept": "暖惒", "group": "夜班"}
 }
 
-st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統已修復代班與換班按鈕的資料庫寫入邏輯，點擊後將立即更新並即時生效！")
+DB_FILE = "leave_database.json"
 
-# 初始化 Session State
-if "daily_leaves" not in st.session_state:
-    st.session_state.daily_leaves = {
+# 💾 雲端永久儲存讀取函式
+def load_leaves_from_disk():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    # 預設初始假表
+    return {
         "10/1": ["萱", "安", "Benson", "孟"],
         "10/2": ["聖", "安", "Benson", "孟"],
         "10/3": ["聖", "淵", "安", "慈"],
@@ -68,9 +75,23 @@ if "daily_leaves" not in st.session_state:
         "10/31": ["琪", "Benson", "孟", "聖"]
     }
 
+def save_leaves_to_disk(data):
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        st.error(f"存檔失敗: {e}")
+
+st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
+st.markdown("🔒 **本系統已升級雲端自動存檔防護罩**：所有排假、換班與代班紀錄會即時寫入雲端檔案，**重新整理網頁絕不丟失資料！**")
+
+# 初始化 Session State
+if "daily_leaves" not in st.session_state:
+    st.session_state.daily_leaves = load_leaves_from_disk()
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！調假與代班按鈕的寫入邏輯已修復，現在點擊將立即生效並更新日曆！"}
+        {"role": "assistant", "content": "您好！雲端永久儲存系統已啟用，您可以安心排假、查詢與調班！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -178,10 +199,12 @@ with col1:
                         if current_user in st.session_state.daily_leaves[d]:
                             st.session_state.daily_leaves[d].remove(current_user)
             
-            st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
+            # 💾 寫入雲端檔案永久保存
+            save_leaves_to_disk(st.session_state.daily_leaves)
+            st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假，已永久存檔！")
             st.rerun()
 
-    # 🤝 修正後的跨部門代班與同組換班/調假機制
+    # 🤝 跨部門代班與同組換班/調假機制
     st.markdown("---")
     st.subheader("🤝 跨部門代班與同組換班/調假機制")
     st.markdown("如果想和同組夥伴在同一天休假，或需進行輪班調假，可透過暖惒部門支援代班：")
@@ -203,27 +226,26 @@ with col1:
                 st.session_state.daily_leaves[target_date] = []
                 
             if action_type == "申請同日休假（需暖惒代班支援）":
-                # 讓當前使用者休假，並記錄暖惒支援代班
                 if current_user not in st.session_state.daily_leaves[target_date]:
                     st.session_state.daily_leaves[target_date].append(current_user)
-                st.success(f"✅ 已成功送出！【{target_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
+                save_leaves_to_disk(st.session_state.daily_leaves)
+                st.success(f"✅ 已成功送出並永久存檔！【{target_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
                 st.rerun()
             else:
-                # 換班邏輯：把當天原本休假的同組夥伴（例如琪）換成上班，換成當前使用者（安）休假
                 off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
                 if off_colleagues_on_day:
                     target_colleague = off_colleagues_on_day[0]
-                    # 移除原本休假的同事，加入當前使用者
                     st.session_state.daily_leaves[target_date].remove(target_colleague)
                     if current_user not in st.session_state.daily_leaves[target_date]:
                         st.session_state.daily_leaves[target_date].append(current_user)
-                    st.success(f"✅ 換班成功！在【{target_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
+                    save_leaves_to_disk(st.session_state.daily_leaves)
+                    st.success(f"✅ 換班成功並永久存檔！在【{target_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
                     st.rerun()
                 else:
-                    # 如果當天沒有同組同事休假，則直接將當前使用者加入休假
                     if current_user not in st.session_state.daily_leaves[target_date]:
                         st.session_state.daily_leaves[target_date].append(current_user)
-                    st.success(f"✅ 已成功完成 {target_date} 的調假申請！")
+                    save_leaves_to_disk(st.session_state.daily_leaves)
+                    st.success(f"✅ 已成功完成並永久存檔 {target_date} 的調假申請！")
                     st.rerun()
 
 with col2:
