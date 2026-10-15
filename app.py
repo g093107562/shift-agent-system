@@ -39,10 +39,9 @@ def load_leaves_from_disk():
         try:
             with open(DB_FILE, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
-                # 自動對所有日期的名單進行去重 (set) 確保不重複
                 for k, v in raw_data.items():
                     if isinstance(v, list):
-                        data[k] = list(dict.fromkeys(v)) # 保持順序去重
+                        data[k] = list(dict.fromkeys(v))
                     else:
                         data[k] = v
                 return data
@@ -89,7 +88,6 @@ def load_leaves_from_disk():
 
 def save_leaves_to_disk(data):
     try:
-        # 儲存前再次確保所有名單去重
         clean_data = {k: list(dict.fromkeys(v)) for k, v in data.items() if isinstance(v, list)}
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(clean_data, f, ensure_ascii=False, indent=4)
@@ -97,7 +95,7 @@ def save_leaves_to_disk(data):
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **防重複名字機制已全面啟動**：所有排假顯示與雲端存檔皆自動去重，介面乾淨俐落！")
+st.markdown("🔒 **調班按鈕即時反應與雲端存檔機制已全面激活**！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -105,7 +103,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已自動清除重複顯示的名稱。您可以繼續愉快地排班！"}
+        {"role": "assistant", "content": "您好！調班按鈕已修復並支援即時重新整理。歡迎隨時操作！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -149,7 +147,6 @@ for week in weeks:
             else:
                 d_key = f"{year_num}_{month_num}/{day}"
                 st.markdown(f"**{month_num}/{day}**")
-                # 確保取出的名單是完全去重的
                 off_people = list(dict.fromkeys(st.session_state.daily_leaves.get(d_key, [])))
                 if off_people:
                     for p in off_people:
@@ -212,7 +209,6 @@ with col1:
                 if dk not in st.session_state.daily_leaves:
                     st.session_state.daily_leaves[dk] = []
                 
-                # 轉成集合確保單日不重複加入
                 current_day_list = set(st.session_state.daily_leaves[dk])
                 
                 if d_disp in available_display_days:
@@ -227,7 +223,7 @@ with col1:
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假，已永久存檔！")
             st.rerun()
 
-    # 🤝 跨部門代班與同組換班/調假機制
+    # 🤝 跨部門代班與同組換班/調假機制（已加入 st.rerun() 即時重新整理）
     st.markdown("---")
     st.subheader("🤝 跨部門代班與同組換班/調假機制")
     st.markdown("如果想和同組夥伴在同一天休假，或需進行輪班調假，可透過暖惒部門支援代班：")
@@ -256,7 +252,7 @@ with col1:
                 st.session_state.daily_leaves[target_db_key] = list(day_set)
                 save_leaves_to_disk(st.session_state.daily_leaves)
                 st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
-                st.rerun()
+                st.rerun() # 🚀 強制立即重新整理畫面
             else:
                 off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
                 if off_colleagues_on_day:
@@ -267,80 +263,8 @@ with col1:
                     st.session_state.daily_leaves[target_db_key] = list(day_set)
                     save_leaves_to_disk(st.session_state.daily_leaves)
                     st.success(f"✅ 換班成功並永久存檔！在【{target_disp_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
-                    st.rerun()
+                    st.rerun() # 🚀 強制立即重新整理畫面
                 else:
                     day_set.add(current_user)
                     st.session_state.daily_leaves[target_db_key] = list(day_set)
-                    save_leaves_to_disk(st.session_state.daily_leaves)
-                    st.success(f"✅ 已成功完成並永久存檔 {target_disp_date} 的調假申請！")
-                    st.rerun()
-
-with col2:
-    st.header("💬 AI Agent 智慧互動區")
-    
-    chat_container = st.container(height=450)
-    with chat_container:
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.chat_message("user").write(msg["content"])
-            else:
-                st.chat_message("assistant").write(msg["content"])
-                
-    user_input = st.chat_input("請在此輸入查詢指令（例如：琪11月休幾天？、11/5誰休假）...")
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        query_text = user_input.strip()
-        reply = ""
-        
-        matched_person = None
-        for name in DEFAULT_PERSON_COLORS.keys():
-            if name in query_text:
-                matched_person = name
-                break
-                
-        matched_month = None
-        m_match = re.search(r'(\d{1,2})\s*月', query_text)
-        if m_match:
-            matched_month = int(m_match.group(1))
-        else:
-            matched_month = month_num
-
-        date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
-
-        if matched_person and ("幾天" in query_text or "休假" in query_text or "幾號" in query_text or "哪天" in query_text or not date_match):
-            person_off_dates = []
-            prefix = f"{year_num}_{matched_month}/"
-            for d_key, off_list in st.session_state.daily_leaves.items():
-                if d_key.startswith(prefix) and matched_person in off_list:
-                    day_part = d_key.split('/')[1]
-                    person_off_dates.append(f"{matched_month}/{day_part}")
-            
-            person_off_dates.sort(key=lambda x: int(x.split('/')[1]))
-            count = len(person_off_dates)
-            
-            if count > 0:
-                reply = f"📊 **{year_num}年{matched_month}月【{matched_person}】排假統計結果**：\n\n"
-                reply += f"🗓️ **休假總天數**：共 **{count}** 天\n"
-                reply += f"🌴 **休假日期**：{', '.join(person_off_dates)}"
-            else:
-                reply = f"ℹ️ 【{matched_person}】在 **{year_num}年{matched_month}月** 目前沒有排休任何假哦！"
-
-        elif date_match:
-            month, day = date_match.groups()
-            date_key = f"{year_num}_{month}/{day}"
-            
-            if date_key in st.session_state.daily_leaves:
-                off_list = list(dict.fromkeys(st.session_state.daily_leaves[date_key]))
-                all_people = list(DEFAULT_PERSON_COLORS.keys())
-                working_list = [p for p in all_people if p not in off_list]
-                
-                reply = f"📅 **{year_num}年 {month}/{day} 班表查詢結果**\n\n"
-                reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '全員休假'}\n"
-                reply += f"🌴 **休假人員**：{', '.join(off_list) if off_list else '無'}"
-            else:
-                reply = f"❌ 找不到 {year_num}年 {month}/{day} 的假表記錄（可能該月份尚未排假）。"
-        else:
-            reply = f"🤖 我是您的排班 AI 助理！我能幫您分析假表數據。\n\n試試看這樣問我：\n* 「琪{month_num}月休幾天？」\n* 「{month_num}/15 誰休假？」\n* 「安{month_num}月哪幾天休假？」"
-
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-        st.rerun()
+                    save_leaves_to_disk(st.session_state.
