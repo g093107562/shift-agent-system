@@ -1,15 +1,31 @@
 import streamlit as st
 import os
 import re
+from datetime import datetime
 
-st.set_page_config(page_title="24/7 輪班 AI Agent 系統", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="24/7 輪班與排假表系統", page_icon="📅", layout="wide")
 
-st.title("🏢 企業級 24/7 輪班 AI Agent 系統")
-st.markdown("本系統提供精準排班查詢與假表核對（有標記代表休假，無則上班）。")
+# 🎨 預設舊員工的專屬顏色標籤（完全對應您的截圖色彩）
+DEFAULT_PERSON_COLORS = {
+    "琪": "#9b59b6",       # 紫色
+    "安": "#f1c40f",       # 黃色
+    "淵": "#1abc9c",       # 青綠色
+    "Benson": "#795548",   # 咖啡色
+    "萱": "#3498db",       # 淺藍色
+    "聖": "#2c3e50",       # 深藍色
+    "慈": "#e74c3c",       # 紅色
+    "孟": "#e91e63"        # 粉紅/桃紅色
+}
+
+st.title("🏢 企業級 24/7 輪班與視覺化排假表系統")
+st.markdown("本系統支援自訂新員工顏色指派、舊員工專屬色彩保留、視覺化月份月曆與 AI 排假查詢！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
     st.session_state.departments = ["常銘", "暖惒"]
+
+if "person_colors" not in st.session_state:
+    st.session_state.person_colors = DEFAULT_PERSON_COLORS.copy()
 
 if "employees_db" not in st.session_state:
     st.session_state.employees_db = [
@@ -23,10 +39,10 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 7-10 月假表資料庫（精準對應截圖中的休假名單）
+# 🧠 7-10 月完整假表資料庫
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
-        "8/15": ["聖", "琪", "萱"], # 修正測試日
+        "8/15": ["聖", "琪", "萱"],
         "7/1": ["安", "聖", "孟"], "7/2": ["琪", "萱", "慈"], "7/3": ["安", "聖"], "7/4": ["琪", "孟"],
         "7/5": ["萱", "慈"], "7/6": ["安", "聖"], "7/7": ["琪", "孟"], "7/8": ["萱", "慈"],
         "7/9": ["安", "聖", "孟"], "7/10": ["琪", "萱"], "7/11": ["聖", "慈"], "7/12": ["安", "孟"],
@@ -66,17 +82,16 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。假表資料已修正，您可以再次測試查詢 8/15 囉！"}
+        {"role": "assistant", "content": "您好！我是您的 24/7 輪班與排假表 AI Agent。新員工顏色指派功能已開通，舊員工色彩完整保留！"}
     ]
 
-# 側邊欄：金鑰保護與快速假表檢視
+# 側邊欄：色彩圖例與金鑰保護
 with st.sidebar:
-    st.header("🏢 部門架構與顏色對應")
-    st.write("🔵 常銘部門：安(黃)、琪(紫)、淵(青綠)、Benson(咖啡)")
-    st.write("🟢 暖惒部門：萱(淺藍)、聖(深藍)、慈(紅)、孟(粉紅)")
+    st.header("🎨 人員專屬色彩圖例")
+    for name, color in st.session_state.person_colors.items():
+        st.markdown(f'<span style="background-color:{color}; color:white; padding:4px 10px; border-radius:4px; font-weight:bold;">{name}</span>', unsafe_allow_html=True)
     
     st.markdown("---")
-    
     with st.expander("🔐 系統進階與 API 金鑰設定 (管理員專用)"):
         default_token = st.secrets.get("LINE_CHANNEL_ACCESS_TOKEN", os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""))
         line_token = st.text_input("LINE Channel Access Token", type="password", value=default_token)
@@ -85,11 +100,40 @@ with st.sidebar:
             os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = line_token
             st.success("✅ 金鑰已安全加密載入！")
 
+# 主畫面上方：視覺化月份月曆
+st.markdown("---")
+st.header("📅 視覺化排假月曆檢視區")
+
+selected_month = st.selectbox("選擇要檢視的月份", ["10月 (2026)", "9月 (2026)", "8月 (2026)", "7月 (2026)"])
+month_num = selected_month.split("月")[0]
+
+st.markdown(f"### 🗓️ {selected_month} 每日排假一覽表")
+days_in_month = 31 if month_num in ["7", "8", "10"] else 30
+cols_per_row = 7
+days_list = [f"{month_num}/{d}" for d in range(1, days_in_month + 1)]
+
+for i in range(0, len(days_list), cols_per_row):
+    week_cols = st.columns(cols_per_row)
+    for j in range(cols_per_row):
+        if i + j < len(days_list):
+            d_key = days_list[i + j]
+            with week_cols[j]:
+                st.markdown(f"**{d_key}**")
+                off_people = st.session_state.daily_leaves.get(d_key, [])
+                if off_people:
+                    for p in off_people:
+                        c = st.session_state.person_colors.get(p, "#888888")
+                        st.markdown(f'<div style="background-color:{c}; color:white; padding:2px 6px; border-radius:3px; font-size:12px; margin-bottom:2px; text-align:center;">{p} 休</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div style="color:gray; font-size:11px;">全員上班</div>', unsafe_allow_html=True)
+
+st.markdown("---")
+
 # 主畫面左右雙欄
 col1, col2 = st.columns([1, 1.2])
 
 with col1:
-    st.header("➕ 新增員工與指派部門")
+    st.header("➕ 新增員工與指派顏色")
     
     with st.form("add_employee_form", clear_on_submit=True):
         new_name = st.text_input("員工姓名")
@@ -103,6 +147,9 @@ with col1:
             "固定休假班"
         ])
         
+        # 🎨 新增員工時可自選專屬顏色
+        new_color = st.color_picker("指派個人專屬代表色", "#3498db")
+        
         submit_btn = st.form_submit_button("將員工加入資料庫")
         
         if submit_btn and new_name:
@@ -110,24 +157,27 @@ with col1:
             st.session_state.employees_db.append({
                 "id": new_id, "name": new_name, "dept": selected_dept, "group": new_group, "status": "在職"
             })
-            st.success(f"🎉 成功新增【{new_name}】至【{selected_dept}】！")
+            # 記錄新員工的專屬顏色
+            st.session_state.person_colors[new_name] = new_color
+            st.success(f"🎉 成功新增【{new_name}】至【{selected_dept}】並指定專屬顏色！")
+            st.rerun()
             
-    st.markdown("### 👥 現有員工總覽與色彩區分")
-    
+    st.markdown("### 👥 現有員工總覽")
     if not st.session_state.employees_db:
-        st.info("目前沒有員工資料，請從上方新增。")
+        st.info("目前沒有員工資料。")
     else:
         for idx, emp in enumerate(st.session_state.employees_db):
             cols = st.columns([3, 1])
             with cols[0]:
+                c = st.session_state.person_colors.get(emp['name'], "#888888")
                 if emp['dept'] == "常銘":
-                    st.info(f"🔵 **[常銘] {emp['name']}** | 🕒 {emp['group']}")
+                    st.markdown(f'🔵 **[常銘] <span style="color:{c}; font-weight:bold;">{emp["name"]}</span>** | 🕒 {emp["group"]}', unsafe_allow_html=True)
                 else:
-                    st.success(f"🟢 **[暖惒] {emp['name']}** | 🕒 {emp['group']}")
+                    st.markdown(f'🟢 **[暖惒] <span style="color:{c}; font-weight:bold;">{emp["name"]}</span>** | 🕒 {emp["group"]}', unsafe_allow_html=True)
             with cols[1]:
                 if st.button("🗑️ 刪除", key=f"del_{idx}"):
                     st.session_state.employees_db.pop(idx)
-                    st.success(f"已成功刪除員工：{emp['name']}")
+                    st.success(f"已刪除：{emp['name']}")
                     st.rerun()
 
 with col2:
@@ -141,7 +191,7 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：8/15誰上班）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：8/15誰上班、琪 10/2有上班嗎）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
@@ -156,7 +206,7 @@ with col2:
             
             if date_key in st.session_state.daily_leaves:
                 off_list = st.session_state.daily_leaves[date_key]
-                all_people = ["琪", "安", "淵", "Benson", "萱", "聖", "慈", "孟"]
+                all_people = list(st.session_state.person_colors.keys())
                 working_list = [p for p in all_people if p not in off_list]
                 
                 target_name = None
@@ -167,17 +217,17 @@ with col2:
                 
                 if target_name:
                     if target_name in off_list:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】有標顏色（休假區塊），因此是 **【休假】** 🌴。"
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】有專屬色彩標記（休假區塊），因此是 **【休假】** 🌴。"
                     else:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】沒有標顏色，因此是 **【要上班】** 💼！"
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】沒有色彩標記，因此是 **【要上班】** 💼！"
                 else:
-                    reply = f"📅 **{date_key} 全員班表查詢結果**（對應顏色區塊）\n\n"
+                    reply = f"📅 **{date_key} 全員班表查詢結果**（對應專屬色彩標籤）\n\n"
                     reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '無'}\n"
                     reply += f"🌴 **休假人員（有顏色標記）**：{', '.join(off_list) if off_list else '無'}"
             else:
                 reply = f"❌ 找不到 {date_key} 的假表記錄。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。請輸入日期來查詢（例如：「8/15誰上班」）！"
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「8/15誰上班」）！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
