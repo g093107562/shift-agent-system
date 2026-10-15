@@ -8,8 +8,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 app = Flask(__name__)
 
 # 請替換為您從 LINE Developers 取得的真實憑證
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "您的_Channel_Access_Token")
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "您的_Channel_Secret")
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "Bmzz64hvWEWFPbX8NpURapNhaPbSGA8ro5Mp4AufZZfhvk2jqTGooqTMSS+1IZwc8AogRt8Dq3qOhBsI6C4hoVCEU4FTVmZCsQVXuUKrutWEOXBjyVvHXyYQdgqDtzH3gu18dRQCB1JXMwDu6AxhHwdB04t89/1O/w1cDnyilFU=")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "1c9396bd71bd481688f1325f41170ad8")
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
