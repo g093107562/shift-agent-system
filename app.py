@@ -194,4 +194,45 @@ with col2:
             if msg["role"] == "user":
                 st.chat_message("user").write(msg["content"])
             else:
-                st.chat_message("
+                st.chat_message("assistant").write(msg["content"])
+                
+    user_input = st.chat_input("請在此輸入查詢指令（例如：10/1誰休假）...")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
+        query_text = user_input.strip()
+        reply = ""
+        
+        date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
+        
+        if date_match:
+            month, day = date_match.groups()
+            date_key = f"{month}/{day}"
+            
+            if date_key in st.session_state.daily_leaves:
+                off_list = list(set(st.session_state.daily_leaves[date_key]))
+                all_people = list(st.session_state.person_colors.keys())
+                working_list = [p for p in all_people if p not in off_list]
+                
+                target_name = None
+                for name in all_people:
+                    if name in query_text:
+                        target_name = name
+                        break
+                
+                if target_name:
+                    if target_name in off_list:
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】固定休假 🌴。"
+                    else:
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】需要上班 💼！"
+                else:
+                    reply = f"📅 **{date_key} 班表查詢結果**\n\n"
+                    reply += f"💼 **上班人員**：{', '.join(working_list)}\n"
+                    reply += f"🌴 **休假人員**：{', '.join(off_list)}"
+            else:
+                reply = f"❌ 找不到 {date_key} 的假表記錄。"
+        else:
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「10/1誰休假」）！"
+
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        st.rerun()
