@@ -4,22 +4,23 @@ import os
 st.set_page_config(page_title="24/7 輪班 AI Agent 系統", page_icon="🏢", layout="wide")
 
 st.title("🏢 企業級 24/7 做二休二輪班 AI Agent 系統")
-st.markdown("本系統支援自訂部門、動態新增/刪除員工、安全金鑰隔離與真實 API 串接。")
+st.markdown("本系統支援自訂部門、動態新增/刪除員工、正確班別對應、安全金鑰隔離與真實 API 串接。")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
-    st.session_state.departments = ["管理部", "技術支援組", "營運中心", "品管課", "常銘"]
+    st.session_state.departments = ["管理部", "技術支援組", "營運中心", "品管課", "常銘", "暖憩"]
 
 if "employees_db" not in st.session_state:
     st.session_state.employees_db = [
-        {"id": "EMP_01", "name": "張小美", "dept": "技術支援組", "group": "早班輪值 (EARLY)", "status": "在職"},
-        {"id": "EMP_02", "name": "王小明", "dept": "營運中心", "group": "夜班輪值 (NIGHT)", "status": "在職"},
-        {"id": "EMP_03", "name": "琪琪", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"}
+        {"id": "EMP_01", "name": "張小美", "dept": "技術支援組", "group": "早班 (08:30-20:30)", "status": "在職"},
+        {"id": "EMP_02", "name": "王小明", "dept": "營運中心", "group": "早班 (08:00-20:00)", "status": "在職"},
+        {"id": "EMP_03", "name": "琪琪", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"},
+        {"id": "EMP_04", "name": "萱萱", "dept": "暖憩", "group": "早班 (08:00-20:00)", "status": "在職"}
     ]
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。您可以隨時在此新增或刪除員工，並與我對話查詢！"}
+        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。班別時段已更新為 08:30 與 08:00 兩組，您可以隨時在此管理員工！"}
     ]
 
 # 側邊欄：部門管理與金鑰設定
@@ -51,7 +52,16 @@ with col1:
     with st.form("add_employee_form"):
         new_name = st.text_input("員工姓名")
         selected_dept = st.selectbox("選擇部門別", st.session_state.departments)
-        new_group = st.selectbox("輪班班別", ["早班 (08:30-20:30)", "夜班 (20:30-08:30)", "固定休假班"])
+        
+        # 修正後的正確班別選項
+        new_group = st.selectbox("輪班班別", [
+            "早班 (08:30-20:30)", 
+            "早班 (08:00-20:00)", 
+            "夜班 (20:30-08:30)", 
+            "夜班 (20:00-08:00)", 
+            "固定休假班"
+        ])
+        
         submit_btn = st.form_submit_button("將員工加入資料庫")
         
         if submit_btn and new_name:
@@ -64,13 +74,11 @@ with col1:
             
     st.markdown("### 👥 現有員工總覽與刪除")
     
-    # 迴圈遍歷所有員工，並為每個人建立一個刪除按鈕
     for idx, emp in enumerate(st.session_state.employees_db):
         cols = st.columns([3, 1])
         with cols[0]:
             st.info(f"**{emp['name']}** | 🏢 {emp['dept']} | 🕒 {emp['group']}")
         with cols[1]:
-            # 刪除按鈕
             if st.button("🗑️ 刪除", key=f"del_{idx}"):
                 st.session_state.employees_db.pop(idx)
                 st.success(f"已成功刪除員工：{emp['name']}")
@@ -91,6 +99,6 @@ with col2:
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
-        reply = f"AI Agent 已收到您的指令：「{user_input}」。系統運作正常！"
+        reply = f"AI Agent 已收到您的指令：「{user_input}」。系統班別已更新為 08:30 與 08:00 兩組對應！"
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
