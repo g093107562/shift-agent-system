@@ -95,7 +95,7 @@ def save_leaves_to_disk(data):
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **多年月獨立雲端資料庫與即時調班系統已全面啟動**！")
+st.markdown("🔒 **全公司雙向互助代班機制已全面啟用**：常銘與暖惒各組別皆可靈活互相支援！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -103,7 +103,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已修復完畢並正常運作。您可以隨時排假、調班或向我查詢！"}
+        {"role": "assistant", "content": "您好！調班系統已升級為全公司雙向互助。您可以隨時排假、調班或向我查詢！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -223,10 +223,10 @@ with col1:
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假，已永久存檔！")
             st.rerun()
 
-    # 🤝 跨部門代班與同組換班/調假機制
+    # 🤝 全公司雙向互助代班與同組換班/調假機制
     st.markdown("---")
-    st.subheader("🤝 跨部門代班與同組換班/調假機制")
-    st.markdown("如果想和同組夥伴在同一天休假，或需進行輪班調假，可透過暖惒部門支援代班：")
+    st.subheader("🤝 跨部門與跨組雙向代班 / 換班機制")
+    st.markdown("您可以選擇指定公司內任意同仁支援代班，或與已休假人員進行換班協調：")
     
     with st.form("substitute_form"):
         target_disp_date = st.selectbox("選擇需要調假/代班的日期", [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)], key="sub_date")
@@ -235,10 +235,11 @@ with col1:
         current_day_off = list(dict.fromkeys(st.session_state.daily_leaves.get(target_db_key, [])))
         st.write(f"📅 **{target_disp_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
         
-        warm_early_staff = [name for name, info in EMPLOYEE_DEPT_GROUP.items() if info["dept"] == "暖惒" and info["group"] == "早班"]
-        helper_person = st.selectbox("指派【暖惒】支援代班人員", warm_early_staff)
+        # 排除自己之後的全公司可支援代班人員清單
+        all_other_staff = [name for name in DEFAULT_PERSON_COLORS.keys() if name != current_user]
+        helper_person = st.selectbox("指定支援代班人員（全公司互助）", all_other_staff)
         
-        action_type = st.radio("選擇調班/代班動作", ["申請同日休假（需暖惒代班支援）", "與已休假人員換班/調假"])
+        action_type = st.radio("選擇調班/代班動作", ["申請同日休假（需指定人員支援代班）", "與已休假人員換班/調假"])
         
         sub_btn = st.form_submit_button("執行調假/代班申請")
         if sub_btn:
@@ -247,11 +248,11 @@ with col1:
                 
             day_set = set(st.session_state.daily_leaves[target_db_key])
             
-            if action_type == "申請同日休假（需暖惒代班支援）":
+            if action_type == "申請同日休假（需指定人員支援代班）":
                 day_set.add(current_user)
                 st.session_state.daily_leaves[target_db_key] = list(day_set)
                 save_leaves_to_disk(st.session_state.daily_leaves)
-                st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
+                st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}】跨組／跨部門支援代班，【{current_user}】順利休假！")
                 st.rerun()
             else:
                 off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
