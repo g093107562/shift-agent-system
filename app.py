@@ -19,7 +19,7 @@ DEFAULT_PERSON_COLORS = {
 }
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統支援 **2026 年至 2035 年（未來 10 年）** 任意年份與月份的跨年永續排假！")
+st.markdown("本系統已連動**上方月曆與下方排假區**：上方選好年份與月份，下方自動切換為該月排假介面！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -79,7 +79,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已擴充支援 2026–2035 年共 10 年的任意跨年排假！"}
+        {"role": "assistant", "content": "您好！上下選單已完美連動，您可以隨時切換任意年份與月份來檢視與排假！"}
     ]
 
 # 側邊欄：色彩圖例與金鑰保護
@@ -97,23 +97,21 @@ with st.sidebar:
             os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = line_token
             st.success("✅ 金鑰已安全加密載入！")
 
-# 1. 視覺化月份月曆檢視區（動態 10 年支援）
+# 1. 全域共用：年份與月份選擇器（控制上方月曆與下方排假區）
 st.markdown("---")
-st.header("📅 視覺化動態排假月曆檢視區")
+st.header("📅 永續排假與月曆檢視控制台")
 
-# 支援 2026 到 2035 共 10 年
 years_list = list(range(2026, 2036))
-
 c_year, c_month = st.columns(2)
 with c_year:
-    selected_year = st.selectbox("選擇年份", years_list, index=0)
+    selected_year = st.selectbox("選擇全域年份", years_list, index=0, key="global_year")
 with c_month:
-    selected_month = st.selectbox("選擇月份", [f"{m}月" for m in range(1, 13)], index=9) # 預設10月
+    selected_month_str = st.selectbox("選擇全域月份", [f"{m}月" for m in range(1, 13)], index=9, key="global_month") # 預設10月
 
-month_num = int(selected_month.replace("月", ""))
+month_num = int(selected_month_str.replace("月", ""))
 year_num = selected_year
 
-st.markdown(f"### 🗓️ {year_num}年 {selected_month} 每日排假一覽表")
+st.markdown(f"### 🗓️ {year_num}年 {selected_month_str} 每日排假一覽表")
 
 # 顯示星期表頭 (週日至週六)
 week_days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"]
@@ -146,28 +144,28 @@ for week in weeks:
 
 st.markdown("---")
 
-# 2. 下方左右雙欄：任意年份與月份員工自助排假與 AI 互動區
+# 2. 下方左右雙欄：連動上方年份與月份的員工自助排假與 AI 互動區
 col1, col2 = st.columns([1, 1.2])
 
 with col1:
-    st.header("👤 永續跨年員工自助排假")
-    st.markdown(f"目前針對 **{year_num} 年 {selected_month}** 進行自助排假：")
+    st.header("👤 員工自助排假區")
+    st.markdown(f"目前正針對上方選定的 **{year_num} 年 {selected_month_str}** 進行排假：")
     
     with st.form("self_leave_form"):
         # 選擇身分
         all_staff_names = list(DEFAULT_PERSON_COLORS.keys())
         current_user = st.selectbox("選擇您的身分（排假人）", all_staff_names)
         
-        # 動態計算選擇月份的天數
+        # 自動根據上方選定的年份與月份計算天數 (如 11月 30天，2月 28/29天)
         _, num_days_in_month = calendar.monthrange(year_num, month_num)
         target_month_days = [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)]
         
-        # 找出目前該成員在選擇月份中已勾選的日期
+        # 找出目前該成員在該月份中已勾選的日期
         current_user_leaves = [d for d in target_month_days if current_user in st.session_state.daily_leaves.get(d, [])]
         
-        selected_user_off = st.multiselect(f"勾選【{current_user}】想休假的 {year_num}年{selected_month} 日期：", target_month_days, default=current_user_leaves)
+        selected_user_off = st.multiselect(f"勾選【{current_user}】想休假的 {year_num}年{selected_month_str} 日期：", target_month_days, default=current_user_leaves)
         
-        submit_user_leave = st.form_submit_button(f"🚀 提交【{current_user}】在 {year_num}年{selected_month} 的排假")
+        submit_user_leave = st.form_submit_button(f"🚀 提交【{current_user}】在 {year_num}年{selected_month_str} 的排假")
         
         if submit_user_leave:
             for d in target_month_days:
@@ -181,57 +179,10 @@ with col1:
                     if current_user in st.session_state.daily_leaves[d]:
                         st.session_state.daily_leaves[d].remove(current_user)
             
-            st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month} 總共排了 {len(selected_user_off)} 天假。")
+            st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
             st.rerun()
 
 with col2:
     st.header("💬 AI Agent 智慧互動區")
     
-    chat_container = st.container(height=350)
-    with chat_container:
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.chat_message("user").write(msg["content"])
-            else:
-                st.chat_message("assistant").write(msg["content"])
-                
-    user_input = st.chat_input("請在此輸入查詢指令（例如：11/1誰休假）...")
-    if user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        
-        query_text = user_input.strip()
-        reply = ""
-        
-        date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
-        
-        if date_match:
-            month, day = date_match.groups()
-            date_key = f"{month}/{day}"
-            
-            if date_key in st.session_state.daily_leaves:
-                off_list = list(set(st.session_state.daily_leaves[date_key]))
-                all_people = list(st.session_state.person_colors.keys())
-                working_list = [p for p in all_people if p not in off_list]
-                
-                target_name = None
-                for name in all_people:
-                    if name in query_text:
-                        target_name = name
-                        break
-                
-                if target_name:
-                    if target_name in off_list:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】固定休假 🌴。"
-                    else:
-                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】需要上班 💼！"
-                else:
-                    reply = f"📅 **{date_key} 班表查詢結果**\n\n"
-                    reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '全員休假'}\n"
-                    reply += f"🌴 **休假人員**：{', '.join(off_list) if off_list else '無'}"
-            else:
-                reply = f"❌ 找不到 {date_key} 的假表記錄（可能該月份尚未排假）。"
-        else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「11/1誰休假」）！"
-
-        st.session_state.chat_history.append({"role": "assistant", "content": reply})
-        st.rerun()
+    chat_container = st
