@@ -1,11 +1,11 @@
 import streamlit as st
 import os
-from datetime import datetime
+import re
 
 st.set_page_config(page_title="24/7 輪班 AI Agent 系統", page_icon="🏢", layout="wide")
 
 st.title("🏢 企業級 24/7 輪班 AI Agent 系統")
-st.markdown("本系統已精準對應 7~10 月假表邏輯：行事曆上有名字代表【休假】，沒有名字代表【上班】。")
+st.markdown("本系統已修復人員姓名模糊比對：行事曆上有名字代表【休假】，沒名字代表【上班】。")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -23,8 +23,7 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 7-10 月實際假表資料庫（鍵值為「日期」，對應當天休假的名字列表）
-# 名稱對應：琪、安、淵、Benson(勳)、萱、聖、慈、孟
+# 🧠 7-10 月實際假表資料庫（有名字 = 當天休假）
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
         # 7月
@@ -70,7 +69,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。邏輯已更正：行事曆上有名字代表【休假】，沒名字代表【上班】。請隨時測試！"}
+        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。姓名識別已升級，現在輸入「琪」、「安」等單字也能精準查詢！"}
     ]
 
 # 側邊欄：金鑰保護
@@ -145,23 +144,22 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：琪琪 9/17 有上班嗎、安 10/15 休假嗎）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：琪 9/17 有上班嗎、安 10/15 休假嗎）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
         query_text = user_input.strip()
         reply = ""
         
-        # 抓取人員姓名簡稱
+        # 抓取人員姓名（支援簡稱「琪」、「安」、「萱」、「聖」、「孟」、「慈」、「淵」、「勳」）
         target_name = None
-        for name in ["琪琪", "安", "淵", "勳", "Benson", "萱", "聖", "慈", "孟"]:
-            if name in query_text or (name == "安" and "安" in query_text) or (name == "琪" and "琪" in query_text):
-                target_name = "安" if name == "安" else ("琪" if name == "琪" else name)
-                if name == "Benson" or name == "勳": target_name = "勳"
+        possible_names = ["琪", "安", "淵", "勳", "Benson", "萱", "聖", "慈", "孟"]
+        for name in possible_names:
+            if name in query_text:
+                target_name = "勳" if name == "Benson" else name
                 break
         
         # 抓取日期 (例如 9/17 或 10/15)
-        import re
         date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
         
         if target_name and date_match:
@@ -178,9 +176,9 @@ with col2:
                 else:
                     reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】的名字不在假表上，因此是 **【要上班】** 💼！"
             else:
-                reply = f"❌ 找不到 {date_key} 的假表記錄範圍。"
+                reply = f"❌ 找不到 {date_key} 的假表記錄範圍（目前支援 7 月至 10 月）。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。請輸入特定日期與人員（例如：「琪琪 9/17 有上班嗎」），我會立刻為您核對當天是否有休假！"
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。請輸入「名字 + 日期」（例如：「琪 9/17 有上班嗎」），我會立刻為您核對！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
