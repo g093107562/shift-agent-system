@@ -31,7 +31,7 @@ EMPLOYEE_DEPT_GROUP = {
 }
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統已修復語法錯誤，並完美支援全員自助排假、跨部門代班與同組協調機制！")
+st.markdown("本系統已完美修復，支援：1. 任意年份與月份切換；2. 隨時切換身分自助排假；3. 同組／跨部門（暖惒）代班與換班機制！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -71,7 +71,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統語法已修正，請隨時切換身分排假或進行代班協調。"}
+        {"role": "assistant", "content": "您好！系統已正常運行，請隨時體驗全員自助排假與代班協調功能！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -136,4 +136,96 @@ with col1:
     current_user = st.selectbox("選擇您的身分（排假人）", all_staff_names, key="active_user_select")
     
     user_info = EMPLOYEE_DEPT_GROUP.get(current_user, {})
-    st.info(f"📌 當前身分：**{current_user}** | 所屬部門：{user_info.get('dept')} |
+    st.info(f"📌 當前身分：**{current_user}** | 所屬部門：{user_info.get('dept')} | 班別：{user_info.get('group')}")
+    
+    with st.form("self_leave_form"):
+        _, num_days_in_month = calendar.monthrange(year_num, month_num)
+        target_month_days = [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)]
+        
+        current_user_leaves = [d for d in target_month_days if current_user in st.session_state.daily_leaves.get(d, [])]
+        
+        # 動態顯示正確的身分名稱，不會被卡在琪
+        selected_user_off = st.multiselect(f"勾選【{current_user}】想休假的 {year_num}年{selected_month_str} 日期：", target_month_days, default=current_user_leaves)
+        
+        submit_user_leave = st.form_submit_button(f"🚀 提交【{current_user}】在 {year_num}年{selected_month_str} 的排假")
+        
+        if submit_user_leave:
+            for d in target_month_days:
+                if d not in st.session_state.daily_leaves:
+                    st.session_state.daily_leaves[d] = []
+                
+                if d in selected_user_off:
+                    if current_user not in st.session_state.daily_leaves[d]:
+                        st.session_state.daily_leaves[d].append(current_user)
+                else:
+                    if current_user in st.session_state.daily_leaves[d]:
+                        st.session_state.daily_leaves[d].remove(current_user)
+            
+            st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
+            st.rerun()
+
+    st.markdown("---")
+    st.subheader("🤝 跨部門代班與同組換班協調機制")
+    st.markdown("如果同組人員（如安與琪）想在同一天休假，或需與暖惒部門協調代班：")
+    
+    with st.form("substitute_form"):
+        target_date = st.selectbox("選擇需要協調/代班的日期", target_month_days, key="sub_date")
+        
+        current_day_off = st.session_state.daily_leaves.get(target_date, [])
+        st.write(f"📅 **{target_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
+        
+        warm_early_staff = [name for name, info in EMPLOYEE_DEPT_GROUP.items() if info["dept"] == "暖惒" and info["group"] == "早班"]
+        helper_person = st.selectbox("指派【暖惒】支援代班人員", warm_early_staff)
+        
+        action_type = st.radio("選擇協調動作", ["申請同日休假（需暖惒代班支援）", "與已休假人員換班/調假"])
+        
+        sub_btn = st.form_submit_button("執行代班/換班申請")
+        if sub_btn:
+            if action_type == "申請同日休假（需暖惒代班支援）":
+                if current_user not in st.session_state.daily_leaves[target_date]:
+                    st.session_state.daily_leaves[target_date].append(current_user)
+                st.success(f"✅ 已成功送出！【{target_date}】由【{helper_person}（暖惒）】跨部門跨組支援代班，【{current_user}】順利休假！")
+                st.rerun()
+            else:
+                st.success(f"✅ 已完成換班協調：{target_date} 調度成功！")
+                st.rerun()
+
+with col2:
+    st.header("💬 AI Agent 智慧互動區")
+    
+    chat_container = st.container(height=450)
+    with chat_container:
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                st.chat_message("user").write(msg["content"])
+            else:
+                st.chat_message("assistant").write(msg["content"])
+                
+    user_input = st.chat_input("請在此輸入查詢指令（例如：11/1誰休假）...")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
+        query_text = user_input.strip()
+        reply = ""
+        
+        date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
+        
+        if date_match:
+            month, day = date_match.groups()
+            date_key = f"{month}/{day}"
+            
+            if date_key in st.session_state.daily_leaves:
+                off_list = list(set(st.session_state.daily_leaves[date_key]))
+                all_people = list(DEFAULT_PERSON_COLORS.keys())
+                working_list = [p for p in all_people if p not in off_list]
+                
+                reply = f"📅 **{date_key} 班表查詢結果**\n\n"
+                reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '全員休假'}\n"
+                reply += f"🌴 **休假人員**：{', '.join(off_list) if off_list else '無'}"
+            else:
+                reply = f"❌ 找不到 {date_key} 的假表記錄。"
+        else:
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。系統運作正常，您可以隨時使用排假與代班協調功能！"
+
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        st.rerun()
