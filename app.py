@@ -5,7 +5,7 @@ import re
 st.set_page_config(page_title="24/7 輪班 AI Agent 系統", page_icon="🏢", layout="wide")
 
 st.title("🏢 企業級 24/7 輪班 AI Agent 系統")
-st.markdown("本系統已修復人員姓名模糊比對：行事曆上有名字代表【休假】，沒名字代表【上班】。")
+st.markdown("本系統支援單人查詢與全員日班表查詢：行事曆上有名字代表【休假】，沒名字代表【上班】。")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -13,7 +13,7 @@ if "departments" not in st.session_state:
 
 if "employees_db" not in st.session_state:
     st.session_state.employees_db = [
-        {"id": "EMP_01", "name": "琪琪", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"},
+        {"id": "EMP_01", "name": "琪", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"},
         {"id": "EMP_02", "name": "安", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"},
         {"id": "EMP_03", "name": "淵", "dept": "常銘", "group": "夜班 (20:30-08:30)", "status": "在職"},
         {"id": "EMP_04", "name": "勳(Benson)", "dept": "常銘", "group": "早班 (08:30-20:30)", "status": "在職"},
@@ -69,14 +69,14 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。姓名識別已升級，現在輸入「琪」、「安」等單字也能精準查詢！"}
+        {"role": "assistant", "content": "您好！我是您的 24/7 輪班 AI Agent。現在不只可查單人，還能輸入「9/17誰上班」查詢整天全員班表！"}
     ]
 
 # 側邊欄：金鑰保護
 with st.sidebar:
     st.header("🏢 部門架構總覽")
-    st.write("🔵 常銘部門 (琪、安、淵、Benson/勳)")
-    st.write("🟢 暖惒部門 (萱、聖、慈/小慧、孟)")
+    st.write("🔵 常銘部門 (琪、安、淵、勳)")
+    st.write("🟢 暖惒部門 (萱、聖、慈、孟)")
     
     st.markdown("---")
     
@@ -144,41 +144,48 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：琪 9/17 有上班嗎、安 10/15 休假嗎）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：9/17誰上班、琪 9/17有上班嗎）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
         query_text = user_input.strip()
         reply = ""
         
-        # 抓取人員姓名（支援簡稱「琪」、「安」、「萱」、「聖」、「孟」、「慈」、「淵」、「勳」）
-        target_name = None
-        possible_names = ["琪", "安", "淵", "勳", "Benson", "萱", "聖", "慈", "孟"]
-        for name in possible_names:
-            if name in query_text:
-                target_name = "勳" if name == "Benson" else name
-                break
-        
         # 抓取日期 (例如 9/17 或 10/15)
         date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
         
-        if target_name and date_match:
+        if date_match:
             month, day = date_match.groups()
             date_key = f"{month}/{day}"
             
             if date_key in st.session_state.daily_leaves:
                 off_list = st.session_state.daily_leaves[date_key]
-                # 檢查當天該員工是否在休假名單中
-                is_off = any(target_name in o for o in off_list)
+                all_people = ["琪", "安", "淵", "勳", "萱", "聖", "慈", "孟"]
+                working_list = [p for p in all_people if p not in off_list]
                 
-                if is_off:
-                    reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】的名字有在假表上，因此是 **【休假】** 🌴。"
+                # 判斷是查單人還是查全體
+                target_name = None
+                for name in all_people:
+                    if name in query_text:
+                        target_name = name
+                        break
+                
+                if target_name:
+                    # 單人查詢
+                    if target_name in off_list:
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】的名字有在假表上，因此是 **【休假】** 🌴。"
+                    else:
+                        reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】的名字不在假表上，因此是 **【要上班】** 💼！"
                 else:
-                    reply = f"📋 查詢結果：在 **{date_key}** 這天，【{target_name}】的名字不在假表上，因此是 **【要上班】** 💼！"
+                    # 全體日班表查詢
+                    reply = f"📅 **{date_key} 全員班表查詢結果**：\n\n"
+                    reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '無'}\n"
+                    reply += f"🌴 **休假人員**：{', '.join(off_list) if off_list else '無'}"
             else:
                 reply = f"❌ 找不到 {date_key} 的假表記錄範圍（目前支援 7 月至 10 月）。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。請輸入「名字 + 日期」（例如：「琪 9/17 有上班嗎」），我會立刻為您核對！"
+            # 支援其他關鍵字
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入「9/17誰上班」或「琪 9/17有上班嗎」進行精準查詢！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
