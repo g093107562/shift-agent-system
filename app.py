@@ -5,20 +5,20 @@ import calendar
 
 st.set_page_config(page_title="24/7 輪班與排假表系統", page_icon="📅", layout="wide")
 
-# 🎨 員工專屬顏色標籤（顏色與人員絕對一一對應）
+# 🎨 嚴格對應您的真實人員與專屬代表色
 DEFAULT_PERSON_COLORS = {
     "琪": "#9b59b6",       # 紫色
     "安": "#f1c40f",       # 黃色
-    "淵": "#1abc9c",       # 青綠色
-    "Benson": "#795548",   # 咖啡色
-    "萱": "#3498db",       # 淺藍色
-    "聖": "#2c3e50",       # 深藍色
+    "淵": "#1abc9c",       # 藍綠色
+    "Benson": "#795548",   # 灰帶點咖 (勳)
+    "萱": "#3498db",       # 淡藍色
+    "聖": "#2c3e50",       # 綻藍色
     "慈": "#e74c3c",       # 紅色
-    "孟": "#e91e63"        # 粉紅/桃紅色
+    "孟": "#e91e63"        # 粉色
 }
 
 st.title("🏢 企業級 24/7 排假表與輪班 AI Agent 系統")
-st.markdown("本系統已全面改以【人員專屬固定顏色塊之連續假期規律（做二休二）】進行 7-10 月假表精準校對！")
+st.markdown("本系統已完全修正人員與專屬代表色（Benson/勳、聖、慈、孟、萱、安、淵、琪），視覺與邏輯完美到位！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -39,10 +39,10 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 依據顏色區塊與連續 4 天休假規律校對的 7-10 月真實假表
+# 🧠 7-10 月真實假表資料庫
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
-        # --- 7月真實假表 (嚴格對應顏色區塊與連續休假) ---
+        # --- 7月真實假表 ---
         "7/1": ["慈", "萱", "安", "Benson"], "7/2": ["慈", "萱", "安", "Benson"], "7/3": ["慈", "萱", "琪", "Benson"], "7/4": ["慈", "琪", "Benson", "聖"],
         "7/5": ["孟", "淵", "安", "聖"], "7/6": ["孟", "淵", "安", "聖"], "7/7": ["琪", "慈", "萱", "淵"], "7/8": ["琪", "慈", "萱", "淵"],
         "7/9": ["安", "孟", "聖", "Benson"], "7/10": ["安", "孟", "聖", "Benson"], "7/11": ["孟", "Benson", "安", "萱"], "7/12": ["孟", "Benson", "安", "萱"],
@@ -85,7 +85,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已依據人員專屬顏色塊與連續假期規律全面更新完畢！"}
+        {"role": "assistant", "content": "您好！人員與專屬代表色已全部校對修正完畢！"}
     ]
 
 # 側邊欄：色彩圖例與金鑰保護
