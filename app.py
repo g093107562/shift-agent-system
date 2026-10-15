@@ -3,9 +3,9 @@ import os
 import re
 import calendar
 
-st.set_page_config(page_title="24/7 排假表與輪班 AI Agent 系統", page_icon="📅", layout="wide")
+st.set_page_config(page_title="24/7 輪班與排假表系統", page_icon="📅", layout="wide")
 
-# 🎨 預設舊員工的專屬顏色標籤
+# 🎨 員工專屬顏色標籤
 DEFAULT_PERSON_COLORS = {
     "琪": "#9b59b6",       # 紫色
     "安": "#f1c40f",       # 黃色
@@ -18,7 +18,7 @@ DEFAULT_PERSON_COLORS = {
 }
 
 st.title("🏢 企業級 24/7 排假表與輪班 AI Agent 系統")
-st.markdown("本系統已全面修正日曆引擎，自動計算每個月的真實跨月天數與星期對齊格線！")
+st.markdown("本系統已完美對應 7、8、9、10 月所有真實手機截圖排假資料（每日固定 4 人休假 / 4 人上班）！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -39,13 +39,30 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 完整真實歷史休假資料庫（涵蓋 8 月底跨月與 9、10 月）
+# 🧠 7月至10月完整真實截圖假表資料庫（嚴格確保每日 4 人休假）
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
-        # 8月底跨月份真實資料
-        "8/30": ["聖", "孟", "安", "淵"], "8/31": ["琪", "慈", "萱", "Benson"],
-        
-        # 9月真實假表
+        # --- 7月真實假表 (對應截圖 7) ---
+        "7/1": ["萱", "慈", "安", "Benson"], "7/2": ["淵", "琪", "萱", "安"], "7/3": ["慈", "琪", "Benson", "聖"], "7/4": ["孟", "淵", "安", "琪"],
+        "7/5": ["孟", "安", "聖", "Benson"], "7/6": ["琪", "慈", "萱", "淵"], "7/7": ["琪", "慈", "萱", "聖"], "7/8": ["安", "孟", "聖", "Benson"],
+        "7/9": ["孟", "聖", "萱", "Benson"], "7/10": ["安", "慈", "聖", "琪"], "7/11": ["孟", "Benson", "安", "萱"], "7/12": ["孟", "Benson", "安", "萱"],
+        "7/13": ["慈", "琪", "聖", "淵"], "7/14": ["萱", "安", "淵", "孟"], "7/15": ["萱", "安", "孟", "Benson"], "7/16": ["安", "淵", "慈", "聖"],
+        "7/17": ["聖", "琪", "孟", "Benson"], "7/18": ["琪", "孟", "Benson", "萱"], "7/19": ["琪", "孟", "Benson", "萱"], "7/20": ["安", "聖", "淵", "慈"],
+        "7/21": ["安", "聖", "淵", "慈"], "7/22": ["萱", "琪", "孟", "Benson"], "7/23": ["萱", "琪", "孟", "Benson"], "7/24": ["聖", "安", "淵", "慈"],
+        "7/25": ["聖", "安", "淵", "慈"], "7/26": ["萱", "孟", "Benson", "慈"], "7/27": ["萱", "孟", "Benson", "慈"], "7/28": ["安", "琪", "聖", "淵"],
+        "7/29": ["安", "琪", "聖", "淵"], "7/30": ["Benson", "孟", "慈", "萱"], "7/31": ["Benson", "孟", "慈", "萱"],
+
+        # --- 8月真實假表 (對應截圖 8) ---
+        "8/1": ["安", "聖", "Benson", "慈"], "8/2": ["安", "淵", "孟", "Benson"], "8/3": ["孟", "Benson", "琪", "聖"], "8/4": ["安", "琪", "慈", "聖"],
+        "8/5": ["安", "琪", "慈", "聖"], "8/6": ["安", "淵", "聖", "萱"], "8/7": ["萱", "Benson", "琪", "慈"], "8/8": ["萱", "Benson", "琪", "聖"],
+        "8/9": ["慈", "安", "淵", "萱"], "8/10": ["慈", "安", "淵", "萱"], "8/11": ["Benson", "聖", "琪", "慈"], "8/12": ["Benson", "聖", "琪", "慈"],
+        "8/13": ["安", "淵", "慈", "孟"], "8/14": ["琪", "慈", "孟", "Benson"], "8/15": ["孟", "安", "聖", "琪"], "8/16": ["孟", "安", "聖", "琪"],
+        "8/17": ["Benson", "孟", "琪", "慈"], "8/18": ["安", "慈", "淵", "Benson"], "8/19": ["聖", "慈", "淵", "安"], "8/20": ["聖", "琪", "淵", "萱"],
+        "8/21": ["聖", "琪", "淵", "萱"], "8/22": ["安", "Benson", "孟", "淵"], "8/23": ["安", "Benson", "孟", "淵"], "8/24": ["萱", "慈", "琪", "淵"],
+        "8/25": ["萱", "安", "Benson", "孟"], "8/26": ["安", "Benson", "淵", "慈"], "8/27": ["聖", "淵", "慈", "琪"], "8/28": ["聖", "萱", "Benson", "孟"],
+        "8/29": ["琪", "萱", "Benson", "孟"], "8/30": ["安", "淵", "聖", "慈"], "8/31": ["萱", "孟", "琪", "Benson"],
+
+        # --- 9月真實假表 (對應截圖 9) ---
         "9/1": ["安", "淵", "聖", "慈"], "9/2": ["萱", "孟", "琪", "Benson"], "9/3": ["安", "淵", "Benson", "聖"], "9/4": ["琪", "孟", "慈", "萱"],
         "9/5": ["萱", "安", "聖", "淵"], "9/6": ["琪", "慈", "Benson", "孟"], "9/7": ["安", "淵", "聖", "萱"], "9/8": ["萱", "孟", "琪", "慈"],
         "9/9": ["安", "慈", "Benson", "淵"], "9/10": ["萱", "聖", "淵", "孟"], "9/11": ["琪", "孟", "慈", "安"], "9/12": ["安", "慈", "聖", "Benson"],
@@ -54,8 +71,8 @@ if "daily_leaves" not in st.session_state:
         "9/21": ["安", "淵", "萱", "琪"], "9/22": ["琪", "孟", "慈", "聖"], "9/23": ["慈", "聖", "淵", "安"], "9/24": ["安", "萱", "琪", "孟"],
         "9/25": ["琪", "孟", "聖", "慈"], "9/26": ["慈", "聖", "安", "淵"], "9/27": ["安", "萱", "淵", "琪"], "9/28": ["琪", "孟", "Benson", "聖"],
         "9/29": ["慈", "聖", "淵", "安"], "9/30": ["安", "萱", "琪", "孟"],
-        
-        # 10月真實假表
+
+        # --- 10月真實假表 (對應截圖 10) ---
         "10/1": ["安", "聖", "淵", "慈"], "10/2": ["琪", "孟", "Benson", "萱"], "10/3": ["萱", "慈", "淵", "聖"], "10/4": ["安", "聖", "琪", "孟"],
         "10/5": ["琪", "孟", "淵", "Benson"], "10/6": ["萱", "慈", "Benson", "安"], "10/7": ["安", "聖", "淵", "琪"], "10/8": ["琪", "孟", "萱", "慈"],
         "10/9": ["萱", "慈", "Benson", "安"], "10/10": ["安", "聖", "淵", "孟"], "10/11": ["琪", "孟", "慈", "萱"], "10/12": ["萱", "慈", "Benson", "淵"],
@@ -68,7 +85,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！日曆引擎已全面修復，跨月日期與星期格線已 100% 精準對齊！"}
+        {"role": "assistant", "content": "您好！7 到 10 月全年度真實假表已全數匯入完畢！"}
     ]
 
 # 側邊欄：色彩圖例與金鑰保護
@@ -86,12 +103,12 @@ with st.sidebar:
             os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = line_token
             st.success("✅ 金鑰已安全加密載入！")
 
-# 1. 視覺化月份月曆檢視區（透過 calendar 模組精準動態對齊星期）
+# 1. 視覺化月份月曆檢視區
 st.markdown("---")
 st.header("📅 視覺化真實排假月曆檢視區")
 
-selected_month = st.selectbox("選擇要檢視的月份", ["9月 (2026)", "10月 (2026)"])
-month_num = 9 if "9月" in selected_month else 10
+selected_month = st.selectbox("選擇要檢視的月份", ["7月 (2026)", "8月 (2026)", "9月 (2026)", "10月 (2026)"])
+month_num = int(selected_month.split("月")[0])
 year_num = 2026
 
 st.markdown(f"### 🗓️ {year_num}年 {selected_month} 每日排假一覽表（固定 4人休 / 4人上班）")
@@ -103,11 +120,9 @@ for idx, day_name in enumerate(week_days):
     with header_cols[idx]:
         st.markdown(f"<div style='text-align: center; font-weight: bold; color: #555;'>{day_name}</div>", unsafe_allow_html=True)
 
-# 使用 python 的 calendar 取得標準週對齊 (以週日為每週第一天)
+# 動態計算該月標準週曆
 cal = calendar.Calendar(firstweekday=6)
-month_days = list(cal.itermonthdays2(year_num, month_num)) # 回傳 (day, weekday) 矩陣
-
-# 將矩陣切成每週 7 天
+month_days = list(cal.itermonthdays2(year_num, month_num))
 weeks = [month_days[i:i+7] for i in range(0, len(month_days), 7)]
 
 for week in weeks:
@@ -115,16 +130,7 @@ for week in weeks:
     for idx, (day, weekday) in enumerate(week):
         with cols[idx]:
             if day == 0:
-                # 非當月天數，自動帶出上個月月底 (如 8/30, 8/31)
-                if month_num == 9 and idx in [0, 1]:
-                    prev_day_str = f"8/{30 + idx}"
-                    st.markdown(f"**{prev_day_str}**")
-                    off_people = list(set(st.session_state.daily_leaves.get(prev_day_str, [])))
-                    for p in off_people:
-                        c = st.session_state.person_colors.get(p, "#888888")
-                        st.markdown(f'<div style="background-color:{c}; color:white; padding:2px 4px; border-radius:3px; font-size:11px; margin-bottom:2px; text-align:center;">{p} 休</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown("<div style='color:lightgray;'>-</div>", unsafe_allow_html=True)
+                st.markdown("<div style='color:lightgray;'>-</div>", unsafe_allow_html=True)
             else:
                 d_key = f"{month_num}/{day}"
                 st.markdown(f"**{d_key}**")
@@ -198,7 +204,7 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：9/1誰休假）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：7/1誰休假）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
@@ -234,7 +240,7 @@ with col2:
             else:
                 reply = f"❌ 找不到 {date_key} 的假表記錄。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「9/1誰休假」）！"
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。您可以輸入日期來查詢（例如：「7/1誰休假」）！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
