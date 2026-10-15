@@ -7,13 +7,10 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# 您的 Channel Access Token
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv(
-    "LINE_CHANNEL_ACCESS_TOKEN", 
-    "JkDCud7Ffr/IjklUeV5LrKSgnJf1mavRORc3/oYGMrzxFLHS1MwUwISbO6sCyeuL8AogRt8Dq3qOhBsI6C4hoVCEU4FTVmZCsQVXuUKrutVrFisyT7BILKzU6KlfloOm9Vh6Zh7D8hO8ZUYvE7JgwgdB04t89/1O/w1cDnyilFU="
-)
-# 請填入您的 Channel Secret
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "1c9396bd71bd481688f1325f41170ad8")
+# 🔴 請將下面引號內的字串替換成您從 LINE Developers 後台「重新發行」並複製的全新 Token
+LINE_CHANNEL_ACCESS_TOKEN = "JkDCud7Ffr/IjklUeV5LrKSgnJf1mavRORc3/oYGMrzxFLHS1MwUwISbO6sCyeuL8AogRt8Dq3qOhBsI6C4hoVCEU4FTVmZCsQVXuUKrutVrFisyT7BILKzU6KlfloOm9Vh6Zh7D8hO8ZUYvE7JgwgdB04t89/1O/w1cDnyilFU="
+# 🔴 請填入您的 Channel Secret
+LINE_CHANNEL_SECRET = "1c9396bd71bd481688f1325f41170ad8"
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
@@ -66,7 +63,7 @@ def handle_message(event):
                 break
                 
         if not found:
-            reply = f"🤖 24/7 排班機器人運行中！\n您輸入了：{text}\n您可以直接輸入日期（例如：10/5）來查詢當日休假名單，與網頁同步。"
+            reply = f"🤖 24/7 排班機器人運行中！\n收到您的訊息：{text}\n您可以直接輸入日期（例如：10/5）來查詢當日休假名單與網頁同步。"
             
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
     except Exception as e:
