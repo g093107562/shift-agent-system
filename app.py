@@ -1,9 +1,8 @@
 import streamlit as st
 import os
 import re
-from datetime import datetime
 
-st.set_page_config(page_title="24/7 做二休二與真實排假系統", page_icon="📅", layout="wide")
+st.set_page_config(page_title="24/7 排假表與輪班 AI Agent 系統", page_icon="📅", layout="wide")
 
 # 🎨 預設舊員工的專屬顏色標籤
 DEFAULT_PERSON_COLORS = {
@@ -18,7 +17,7 @@ DEFAULT_PERSON_COLORS = {
 }
 
 st.title("🏢 企業級 24/7 排假表與輪班 AI Agent 系統")
-st.markdown("本系統已完整還原 7~10 月真實歷史休假資料，並在之後的排班中全面落實「做二休二」循環鐵律！")
+st.markdown("本系統已還原 7~10 月真實歷史休假資料，並完整修復視覺化日曆與 AI 互動區顯示！")
 
 # 初始化 Session State
 if "departments" not in st.session_state:
@@ -39,7 +38,7 @@ if "employees_db" not in st.session_state:
         {"id": "EMP_08", "name": "孟", "dept": "暖惒", "group": "夜班 (20:00-08:00)", "status": "在職"}
     ]
 
-# 🧠 7-10 月真實歷史休假資料庫（完全對應您的真實紀錄）
+# 🧠 7-10 月真實歷史休假資料庫
 if "daily_leaves" not in st.session_state:
     st.session_state.daily_leaves = {
         # 7月真實假表
@@ -72,7 +71,7 @@ if "daily_leaves" not in st.session_state:
         "9/25": ["琪", "孟"], "9/26": ["聖", "慈"], "9/27": ["安"], "9/28": ["琪", "孟"],
         "9/29": ["聖", "慈"], "9/30": ["安", "萱"],
         
-        # 10月真實假表（對應您截圖中的精準排休）
+        # 10月真實假表
         "10/1": ["安", "聖"], "10/2": ["琪", "孟", "Benson"], "10/3": ["萱", "慈", "淵"], "10/4": ["安", "聖"],
         "10/5": ["琪", "孟"], "10/6": ["萱", "慈", "Benson"], "10/7": ["安", "聖", "淵"], "10/8": ["琪", "孟"],
         "10/9": ["萱", "慈", "Benson"], "10/10": ["安", "聖", "淵"], "10/11": ["琪", "孟"], "10/12": ["萱", "慈", "Benson"],
@@ -84,33 +83,4 @@ if "daily_leaves" not in st.session_state:
     }
 
 if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！我是您的 24/7 排假系統 AI Agent。7~10月已完全載入您提供的真實假表紀錄！"}
-    ]
-
-# 側邊欄：色彩圖例與金鑰保護
-with st.sidebar:
-    st.header("🎨 人員專屬色彩圖例")
-    for name, color in st.session_state.person_colors.items():
-        st.markdown(f'<span style="background-color:{color}; color:white; padding:4px 10px; border-radius:4px; font-weight:bold;">{name}</span>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    with st.expander("🔐 系統進階與 API 金鑰設定 (管理員專用)"):
-        default_token = st.secrets.get("LINE_CHANNEL_ACCESS_TOKEN", os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""))
-        line_token = st.text_input("LINE Channel Access Token", type="password", value=default_token)
-        
-        if st.button("更新並加密儲存金鑰"):
-            os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = line_token
-            st.success("✅ 金鑰已安全加密載入！")
-
-# 主畫面上方：視覺化月份月曆
-st.markdown("---")
-st.header("📅 視覺化真實排假月曆檢視區")
-
-selected_month = st.selectbox("選擇要檢視的月份", ["10月 (2026)", "9月 (2026)", "8月 (2026)", "7月 (2026)"])
-month_num = int(selected_month.split("月")[0])
-
-st.markdown(f"### 🗓️ 2026年 {selected_month} 每日真實排假一覽表")
-days_in_month = 31 if month_num in [7, 8, 10] else 30
-cols_per_row = 7
-days_list = [f"{month_num}/{d}" for d in range(1, days_in_month + 1)]
+    st.session_state.chat_history =
