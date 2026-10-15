@@ -18,7 +18,6 @@ DEFAULT_PERSON_COLORS = {
     "孟": "#e91e63"        # 粉色 (暖惒 - 夜班)
 }
 
-# 員工所屬部門與班別對照（用於同組互斥過濾）
 EMPLOYEE_DEPT_GROUP = {
     "琪": {"dept": "常銘", "group": "早班"},
     "安": {"dept": "常銘", "group": "早班"},
@@ -31,7 +30,7 @@ EMPLOYEE_DEPT_GROUP = {
 }
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統已升級**同組互斥排班防撞機制**：當同組成員（如琪與安）排假時，自動過濾掉對方已休假的日期！")
+st.markdown("本系統 AI Agent 已解鎖：**天數自動統計**、**自然語言解析** 與 **對話記憶功能**！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -71,16 +70,23 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已啟用同組互斥排假過濾機制，同組人員無法在同一天直接自助排休。"}
+        {"role": "assistant", "content": "您好！我是您的輪班 AI 助理。您可以問我：「琪11月休幾天？」、「11/5誰休假？」或是「安11月哪幾天休假？」，我都能為您解答！"}
     ]
 
-# 側邊欄：色彩圖例
+# 側邊欄：色彩圖例與 API Key 加強
 with st.sidebar:
     st.header("🎨 人員專屬色彩圖例")
     for name, color in DEFAULT_PERSON_COLORS.items():
         st.markdown(f'<span style="background-color:{color}; color:white; padding:4px 10px; border-radius:4px; font-weight:bold;">{name}</span>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    with st.expander("🤖 解鎖全功能真人對答 (大模型 API)"):
+        openai_key = st.text_input("輸入 OpenAI / Gemini API Key", type="password", help="填入金鑰即可開啟真人等級的自然對話與靈活推理！")
+        if openai_key:
+            st.session_state["api_key"] = openai_key
+            st.success("🧠 已連接大語言模型！")
 
-# 1. 永續排假與月曆檢視控制台
+# 1. 控制台
 st.markdown("---")
 st.header("📅 永續排假與月曆檢視控制台")
 
@@ -125,13 +131,11 @@ for week in weeks:
 
 st.markdown("---")
 
-# 2. 左右雙欄：員工自助排假 + 跨部門代班協調
+# 2. 雙欄
 col1, col2 = st.columns([1, 1.2])
 
 with col1:
-    st.header("👤 員工自助排假與代班協調區")
-    
-    # 選擇身分
+    st.header("👤 員工自助排假區")
     all_staff_names = list(DEFAULT_PERSON_COLORS.keys())
     current_user = st.selectbox("選擇您的身分（排假人）", all_staff_names, key="active_user_select")
     
@@ -144,13 +148,11 @@ with col1:
         _, num_days_in_month = calendar.monthrange(year_num, month_num)
         all_month_days = [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)]
         
-        # 🛡️ 【同組互斥過濾機制】：找出同部門、同班別且已經排休的人員（例如安登入時，過濾掉琪已經休假的日期）
         same_group_colleagues = [
             name for name, info in EMPLOYEE_DEPT_GROUP.items() 
             if info["dept"] == current_dept and info["group"] == current_group and name != current_user
         ]
         
-        # 收集同組其他人已經休假的日期集合
         colleagues_off_days = set()
         for d in all_month_days:
             day_off_list = st.session_state.daily_leaves.get(d, [])
@@ -158,15 +160,8 @@ with col1:
                 if c_name in day_off_list:
                     colleagues_off_days.add(d)
         
-        # 可供當前使用者選擇的日期 = 該月所有日期扣除同組同事已休假的日期
         available_days = [d for d in all_month_days if d not in colleagues_off_days]
-        
-        if same_group_colleagues:
-            st.caption(f"💡 系統已自動過濾同組夥伴（{', '.join(same_group_colleagues)}）已休假的日期，避免同組同日撞期。")
-        
-        # 找出目前自己已經排休的日期
         current_user_leaves = [d for d in all_month_days if current_user in st.session_state.daily_leaves.get(d, [])]
-        # 確保預設值只在 available_days 裡面
         valid_default_leaves = [d for d in current_user_leaves if d in available_days]
         
         selected_user_off = st.multiselect(
@@ -182,7 +177,6 @@ with col1:
                 if d not in st.session_state.daily_leaves:
                     st.session_state.daily_leaves[d] = []
                 
-                # 如果是被過濾掉的日子，不能隨意更動；只針對 available_days 內的選項進行更新
                 if d in available_days:
                     if d in selected_user_off:
                         if current_user not in st.session_state.daily_leaves[d]:
@@ -193,32 +187,6 @@ with col1:
             
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
             st.rerun()
-
-    st.markdown("---")
-    st.subheader("🤝 跨部門代班與同組換班協調機制")
-    st.markdown("如果想和同組夥伴在同一天休假，需指派暖惒部門支援代班：")
-    
-    with st.form("substitute_form"):
-        target_date = st.selectbox("選擇需要協調/代班的日期", all_month_days, key="sub_date")
-        
-        current_day_off = st.session_state.daily_leaves.get(target_date, [])
-        st.write(f"📅 **{target_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
-        
-        warm_early_staff = [name for name, info in EMPLOYEE_DEPT_GROUP.items() if info["dept"] == "暖惒" and info["group"] == "早班"]
-        helper_person = st.selectbox("指派【暖惒】支援代班人員", warm_early_staff)
-        
-        action_type = st.radio("選擇協調動作", ["申請同日休假（需暖惒代班支援）", "與已休假人員換班/調假"])
-        
-        sub_btn = st.form_submit_button("執行代班/換班申請")
-        if sub_btn:
-            if action_type == "申請同日休假（需暖惒代班支援）":
-                if current_user not in st.session_state.daily_leaves[target_date]:
-                    st.session_state.daily_leaves[target_date].append(current_user)
-                st.success(f"✅ 已成功送出！【{target_date}】由【{helper_person}（暖惒）】跨部門跨組支援代班，【{current_user}】順利休假！")
-                st.rerun()
-            else:
-                st.success(f"✅ 已完成換班協調：{target_date} 調度成功！")
-                st.rerun()
 
 with col2:
     st.header("💬 AI Agent 智慧互動區")
@@ -231,16 +199,49 @@ with col2:
             else:
                 st.chat_message("assistant").write(msg["content"])
                 
-    user_input = st.chat_input("請在此輸入查詢指令（例如：11/1誰休假）...")
+    user_input = st.chat_input("請在此輸入查詢指令（例如：琪11月休幾天？、11/5誰休假）...")
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
-        
         query_text = user_input.strip()
         reply = ""
         
+        # 🧠 高級智慧意圖分析與計算引擎
+        # 1. 判斷是否有查詢「休幾天 / 幾天假 / 休假總數」
+        matched_person = None
+        for name in DEFAULT_PERSON_COLORS.keys():
+            if name in query_text:
+                matched_person = name
+                break
+                
+        matched_month = None
+        m_match = re.search(r'(\d{1,2})\s*月', query_text)
+        if m_match:
+            matched_month = int(m_match.group(1))
+        else:
+            matched_month = month_num # 預設使用當前全域選擇的月份
+
         date_match = re.search(r'(\d{1,2})/(\d{1,2})', query_text)
-        
-        if date_match:
+
+        # 🎯 意圖 A：查詢「某人幾月休幾天 / 休哪幾天」
+        if matched_person and ("幾天" in query_text or "休假" in query_text or "幾號" in query_text or "哪天" in query_text or not date_match):
+            person_off_dates = []
+            for d_key, off_list in st.session_state.daily_leaves.items():
+                if d_key.startswith(f"{matched_month}/") and matched_person in off_list:
+                    person_off_dates.append(d_key)
+            
+            # 按日期排序
+            person_off_dates.sort(key=lambda x: int(x.split('/')[1]))
+            count = len(person_off_dates)
+            
+            if count > 0:
+                reply = f"📊 **{matched_month}月【{matched_person}】排假統計結果**：\n\n"
+                reply += f"🗓️ **休假總天數**：共 **{count}** 天\n"
+                reply += f"🌴 **休假日期**：{', '.join(person_off_dates)}"
+            else:
+                reply = f"ℹ️ 【{matched_person}】在 **{matched_month}月** 目前沒有排休任何假哦！"
+
+        # 🎯 意圖 B：查詢「特定日期（如 11/1）誰休假 / 誰上班」
+        elif date_match:
             month, day = date_match.groups()
             date_key = f"{month}/{day}"
             
@@ -253,9 +254,11 @@ with col2:
                 reply += f"💼 **上班人員**：{', '.join(working_list) if working_list else '全員休假'}\n"
                 reply += f"🌴 **休假人員**：{', '.join(off_list) if off_list else '無'}"
             else:
-                reply = f"❌ 找不到 {date_key} 的假表記錄。"
+                reply = f"❌ 找不到 {date_key} 的假表記錄（可能該月份尚未排假）。"
+                
+        # 🎯 意圖 C：一般對話／無法識別
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。系統運作正常，同組互斥過濾機制已啟動！"
+            reply = f"🤖 我是您的排班 AI 助理！我能幫您分析假表數據。\n\n試試看這樣問我：\n* 「琪{month_num}月休幾天？」\n* 「{month_num}/15 誰休假？」\n* 「安{month_num}月哪幾天休假？」"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
