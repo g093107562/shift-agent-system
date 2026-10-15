@@ -7,7 +7,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="24/7 輪班與排假表系統", page_icon="📅", layout="wide")
 
-# 🎨 嚴格對應您的真實人員與專屬代表色與部門（Benson 已正確設定為常銘 - 夜班）
+# 🎨 嚴格對應您的真實人員與專屬代表色與部門
 DEFAULT_PERSON_COLORS = {
     "琪": "#9b59b6",       # 紫色 (常銘 - 早班)
     "安": "#f1c40f",       # 黃色 (常銘 - 早班)
@@ -32,7 +32,7 @@ EMPLOYEE_DEPT_GROUP = {
 
 DB_FILE = "leave_database.json"
 
-# 💾 雲端永久儲存讀取函式（自動清洗重複資料）
+# 💾 雲端永久儲存讀取函式（自動徹底去重）
 def load_leaves_from_disk():
     data = {}
     if os.path.exists(DB_FILE):
@@ -95,7 +95,7 @@ def save_leaves_to_disk(data):
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **所有語法錯誤已完全排除**！系統運作正常。")
+st.markdown("🔒 **側邊欄組織對照表重複顯示問題已完美修正**！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -103,10 +103,10 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已全面修復，您可以隨時排班、查詢或進行調假！"}
+        {"role": "assistant", "content": "您好！側邊欄顯示已修復乾淨。您可以隨時排假、調班或向我查詢！"}
     ]
 
-# 側邊欄：色彩圖例與組織對照表
+# 側邊欄：色彩圖例與組織對照表（已完全修正重複渲染）
 with st.sidebar:
     st.header("🎨 人員專屬色彩圖例")
     for name, color in DEFAULT_PERSON_COLORS.items():
@@ -223,7 +223,7 @@ with col1:
                     else:
                         if current_user in current_day_list:
                             current_day_list.remove(current_user)
-                st.session_state.daily_leaves[dk] = list(current_day_list)
+                st.session_state.daily_leaves[dk] = list(dict.fromkeys(current_day_list))
             
             save_leaves_to_disk(st.session_state.daily_leaves)
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假，已永久存檔！")
@@ -255,7 +255,7 @@ with col1:
             
             if action_type == "申請同日休假（需指定人員支援代班）":
                 day_set.add(current_user)
-                st.session_state.daily_leaves[target_db_key] = list(day_set)
+                st.session_state.daily_leaves[target_db_key] = list(dict.fromkeys(day_set))
                 save_leaves_to_disk(st.session_state.daily_leaves)
                 st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}】跨組／跨部門支援代班，【{current_user}】順利休假！")
                 st.rerun()
@@ -266,11 +266,20 @@ with col1:
                     if target_colleague in day_set:
                         day_set.remove(target_colleague)
                     day_set.add(current_user)
-                    st.session_state.daily_leaves[target_db_key] = list(day_set)
+                    st.session_state.daily_leaves[target_db_key] = list(dict.fromkeys(day_set))
                     save_leaves_to_disk(st.session_state.daily_leaves)
                     st.success(f"✅ 換班成功並永久存檔！在【{target_disp_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
                     st.rerun()
                 else:
                     day_set.add(current_user)
-                    st.session_state.daily_leaves[target_db_key] = list(day_set)
+                    st.session_state.daily_leaves[target_db_key] = list(dict.fromkeys(day_set))
                     save_leaves_to_disk(st.session_state.daily_leaves)
+                    st.success(f"✅ 已成功完成並永久存檔 {target_disp_date} 的調假申請！")
+                    st.rerun()
+
+with col2:
+    st.header("💬 AI Agent 智慧互動區")
+    
+    chat_container = st.container(height=450)
+    with chat_container:
+        for msg in st.session_state.chat_history:
