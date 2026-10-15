@@ -12,7 +12,7 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv(
     "LINE_CHANNEL_ACCESS_TOKEN", 
     "Bmzz64hvWEWFPbX8NpURapNhaPbSGA8ro5Mp4AufZZfhvk2jqTGooqTMSS+1IZwc8AogRt8Dq3qOhBsl6C4hovVCEU4FTVmZCsQVXuUKrutWEOXBjyVvHXyYQdgqDtzH3gu18dRQCB1JXMwDu6AxHHyBd04t89/10/w1cDnyilFU="
 )
-# 請確認您的 Channel Secret（若有需要可在此填入正確的 Secret）
+# 請填入您的 Channel Secret
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "您的_Channel_Secret")
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
@@ -41,13 +41,13 @@ def callback():
     except TypeError:
         body = request.data.decode('utf-8')
     
-    # 確保 LINE 官方驗證或測試時必定回傳 200 OK，避免 404/400 錯誤
     try:
-        if body and len(body) > 2:
-            handler.handle(body, signature)
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
     except Exception as e:
-        print(f"Notice: {e}")
-    
+        print(f"Error: {e}")
+        
     return 'OK', 200
 
 @handler.add(MessageEvent, message=TextMessage)
@@ -66,7 +66,7 @@ def handle_message(event):
                 break
                 
         if not found:
-            reply = f"🤖 24/7 排班機器人運行中！\n您可以直接輸入日期（例如：10/5）來查詢當日休假名單，與網頁同步。"
+            reply = f"🤖 24/7 排班機器人運行中！\n您輸入了：{text}\n您可以直接輸入日期（例如：10/5）來查詢當日休假名單，與網頁同步。"
             
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
     except Exception as e:
