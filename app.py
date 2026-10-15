@@ -32,17 +32,24 @@ EMPLOYEE_DEPT_GROUP = {
 
 DB_FILE = "leave_database.json"
 
-# 💾 雲端永久儲存讀取函式（支援跨年月獨立儲存）
+# 💾 雲端永久儲存讀取函式（自動清洗重複資料）
 def load_leaves_from_disk():
+    data = {}
     if os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                raw_data = json.load(f)
+                # 自動對所有日期的名單進行去重 (set) 確保不重複
+                for k, v in raw_data.items():
+                    if isinstance(v, list):
+                        data[k] = list(dict.fromkeys(v)) # 保持順序去重
+                    else:
+                        data[k] = v
+                return data
         except:
             pass
     
-    # 預設初始假表（僅保留 10 月示範資料，11月起保持乾淨獨立）
-    initial_data = {}
+    # 預設初始假表
     oct_default = {
         "10/1": ["萱", "安", "Benson", "孟"],
         "10/2": ["聖", "安", "Benson", "孟"],
@@ -77,18 +84,20 @@ def load_leaves_from_disk():
         "10/31": ["琪", "Benson", "孟", "聖"]
     }
     for k, v in oct_default.items():
-        initial_data[f"2026_{k}"] = v
-    return initial_data
+        data[f"2026_{k}"] = list(dict.fromkeys(v))
+    return data
 
 def save_leaves_to_disk(data):
     try:
+        # 儲存前再次確保所有名單去重
+        clean_data = {k: list(dict.fromkeys(v)) for k, v in data.items() if isinstance(v, list)}
         with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+            json.dump(clean_data, f, ensure_ascii=False, indent=4)
     except Exception as e:
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **多年月獨立雲端資料庫已啟動**：各月份排假完全隔離，重新整理網頁永不丟失！")
+st.markdown("🔒 **防重複名字機制已全面啟動**：所有排假顯示與雲端存檔皆自動去重，介面乾淨俐落！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -96,7 +105,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！各月份假表已完全獨立隔離。您可以安心選擇年份與月份進行排假與查詢！"}
+        {"role": "assistant", "content": "您好！系統已自動清除重複顯示的名稱。您可以繼續愉快地排班！"}
     ]
 
 # 側邊欄：色彩圖例
@@ -140,7 +149,8 @@ for week in weeks:
             else:
                 d_key = f"{year_num}_{month_num}/{day}"
                 st.markdown(f"**{month_num}/{day}**")
-                off_people = list(set(st.session_state.daily_leaves.get(d_key, [])))
+                # 確保取出的名單是完全去重的
+                off_people = list(dict.fromkeys(st.session_state.daily_leaves.get(d_key, [])))
                 if off_people:
                     for p in off_people:
                         c = DEFAULT_PERSON_COLORS.get(p, "#888888")
@@ -202,13 +212,16 @@ with col1:
                 if dk not in st.session_state.daily_leaves:
                     st.session_state.daily_leaves[dk] = []
                 
+                # 轉成集合確保單日不重複加入
+                current_day_list = set(st.session_state.daily_leaves[dk])
+                
                 if d_disp in available_display_days:
                     if d_disp in selected_user_off:
-                        if current_user not in st.session_state.daily_leaves[dk]:
-                            st.session_state.daily_leaves[dk].append(current_user)
+                        current_day_list.add(current_user)
                     else:
-                        if current_user in st.session_state.daily_leaves[dk]:
-                            st.session_state.daily_leaves[dk].remove(current_user)
+                        if current_user in current_day_list:
+                            current_day_list.remove(current_user)
+                st.session_state.daily_leaves[dk] = list(current_day_list)
             
             save_leaves_to_disk(st.session_state.daily_leaves)
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假，已永久存檔！")
@@ -223,7 +236,7 @@ with col1:
         target_disp_date = st.selectbox("選擇需要調假/代班的日期", [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)], key="sub_date")
         target_db_key = f"{year_num}_{target_disp_date}"
         
-        current_day_off = st.session_state.daily_leaves.get(target_db_key, [])
+        current_day_off = list(dict.fromkeys(st.session_state.daily_leaves.get(target_db_key, [])))
         st.write(f"📅 **{target_disp_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
         
         warm_early_staff = [name for name, info in EMPLOYEE_DEPT_GROUP.items() if info["dept"] == "暖惒" and info["group"] == "早班"]
@@ -236,9 +249,11 @@ with col1:
             if target_db_key not in st.session_state.daily_leaves:
                 st.session_state.daily_leaves[target_db_key] = []
                 
+            day_set = set(st.session_state.daily_leaves[target_db_key])
+            
             if action_type == "申請同日休假（需暖惒代班支援）":
-                if current_user not in st.session_state.daily_leaves[target_db_key]:
-                    st.session_state.daily_leaves[target_db_key].append(current_user)
+                day_set.add(current_user)
+                st.session_state.daily_leaves[target_db_key] = list(day_set)
                 save_leaves_to_disk(st.session_state.daily_leaves)
                 st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}（暖惒）】跨部門支援代班，【{current_user}】順利休假！")
                 st.rerun()
@@ -246,15 +261,16 @@ with col1:
                 off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
                 if off_colleagues_on_day:
                     target_colleague = off_colleagues_on_day[0]
-                    st.session_state.daily_leaves[target_db_key].remove(target_colleague)
-                    if current_user not in st.session_state.daily_leaves[target_db_key]:
-                        st.session_state.daily_leaves[target_db_key].append(current_user)
+                    if target_colleague in day_set:
+                        day_set.remove(target_colleague)
+                    day_set.add(current_user)
+                    st.session_state.daily_leaves[target_db_key] = list(day_set)
                     save_leaves_to_disk(st.session_state.daily_leaves)
                     st.success(f"✅ 換班成功並永久存檔！在【{target_disp_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
                     st.rerun()
                 else:
-                    if current_user not in st.session_state.daily_leaves[target_db_key]:
-                        st.session_state.daily_leaves[target_db_key].append(current_user)
+                    day_set.add(current_user)
+                    st.session_state.daily_leaves[target_db_key] = list(day_set)
                     save_leaves_to_disk(st.session_state.daily_leaves)
                     st.success(f"✅ 已成功完成並永久存檔 {target_disp_date} 的調假申請！")
                     st.rerun()
@@ -314,7 +330,7 @@ with col2:
             date_key = f"{year_num}_{month}/{day}"
             
             if date_key in st.session_state.daily_leaves:
-                off_list = list(set(st.session_state.daily_leaves[date_key]))
+                off_list = list(dict.fromkeys(st.session_state.daily_leaves[date_key]))
                 all_people = list(DEFAULT_PERSON_COLORS.keys())
                 working_list = [p for p in all_people if p not in off_list]
                 
