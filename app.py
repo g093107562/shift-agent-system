@@ -18,7 +18,7 @@ DEFAULT_PERSON_COLORS = {
     "孟": "#e91e63"        # 粉色 (暖惒 - 夜班)
 }
 
-# 員工所屬部門與班別對照
+# 員工所屬部門與班別對照（用於同組互斥過濾）
 EMPLOYEE_DEPT_GROUP = {
     "琪": {"dept": "常銘", "group": "早班"},
     "安": {"dept": "常銘", "group": "早班"},
@@ -31,7 +31,7 @@ EMPLOYEE_DEPT_GROUP = {
 }
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("本系統已完美修復，支援：1. 任意年份與月份切換；2. 隨時切換身分自助排假；3. 同組／跨部門（暖惒）代班與換班機制！")
+st.markdown("本系統已升級**同組互斥排班防撞機制**：當同組成員（如琪與安）排假時，自動過濾掉對方已休假的日期！")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -71,7 +71,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！系統已正常運行，請隨時體驗全員自助排假與代班協調功能！"}
+        {"role": "assistant", "content": "您好！系統已啟用同組互斥排假過濾機制，同組人員無法在同一天直接自助排休。"}
     ]
 
 # 側邊欄：色彩圖例
@@ -125,7 +125,7 @@ for week in weeks:
 
 st.markdown("---")
 
-# 2. 左右雙欄：員工自助排假 + 暖惒代班／換班協調機制
+# 2. 左右雙欄：員工自助排假 + 跨部門代班協調
 col1, col2 = st.columns([1, 1.2])
 
 with col1:
@@ -136,40 +136,70 @@ with col1:
     current_user = st.selectbox("選擇您的身分（排假人）", all_staff_names, key="active_user_select")
     
     user_info = EMPLOYEE_DEPT_GROUP.get(current_user, {})
-    st.info(f"📌 當前身分：**{current_user}** | 所屬部門：{user_info.get('dept')} | 班別：{user_info.get('group')}")
+    current_dept = user_info.get('dept')
+    current_group = user_info.get('group')
+    st.info(f"📌 當前身分：**{current_user}** | 所屬部門：{current_dept} | 班別：{current_group}")
     
     with st.form("self_leave_form"):
         _, num_days_in_month = calendar.monthrange(year_num, month_num)
-        target_month_days = [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)]
+        all_month_days = [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)]
         
-        current_user_leaves = [d for d in target_month_days if current_user in st.session_state.daily_leaves.get(d, [])]
+        # 🛡️ 【同組互斥過濾機制】：找出同部門、同班別且已經排休的人員（例如安登入時，過濾掉琪已經休假的日期）
+        same_group_colleagues = [
+            name for name, info in EMPLOYEE_DEPT_GROUP.items() 
+            if info["dept"] == current_dept and info["group"] == current_group and name != current_user
+        ]
         
-        # 動態顯示正確的身分名稱，不會被卡在琪
-        selected_user_off = st.multiselect(f"勾選【{current_user}】想休假的 {year_num}年{selected_month_str} 日期：", target_month_days, default=current_user_leaves)
+        # 收集同組其他人已經休假的日期集合
+        colleagues_off_days = set()
+        for d in all_month_days:
+            day_off_list = st.session_state.daily_leaves.get(d, [])
+            for c_name in same_group_colleagues:
+                if c_name in day_off_list:
+                    colleagues_off_days.add(d)
+        
+        # 可供當前使用者選擇的日期 = 該月所有日期扣除同組同事已休假的日期
+        available_days = [d for d in all_month_days if d not in colleagues_off_days]
+        
+        if same_group_colleagues:
+            st.caption(f"💡 系統已自動過濾同組夥伴（{', '.join(same_group_colleagues)}）已休假的日期，避免同組同日撞期。")
+        
+        # 找出目前自己已經排休的日期
+        current_user_leaves = [d for d in all_month_days if current_user in st.session_state.daily_leaves.get(d, [])]
+        # 確保預設值只在 available_days 裡面
+        valid_default_leaves = [d for d in current_user_leaves if d in available_days]
+        
+        selected_user_off = st.multiselect(
+            f"勾選【{current_user}】想休假的 {year_num}年{selected_month_str} 日期：", 
+            options=available_days, 
+            default=valid_default_leaves
+        )
         
         submit_user_leave = st.form_submit_button(f"🚀 提交【{current_user}】在 {year_num}年{selected_month_str} 的排假")
         
         if submit_user_leave:
-            for d in target_month_days:
+            for d in all_month_days:
                 if d not in st.session_state.daily_leaves:
                     st.session_state.daily_leaves[d] = []
                 
-                if d in selected_user_off:
-                    if current_user not in st.session_state.daily_leaves[d]:
-                        st.session_state.daily_leaves[d].append(current_user)
-                else:
-                    if current_user in st.session_state.daily_leaves[d]:
-                        st.session_state.daily_leaves[d].remove(current_user)
+                # 如果是被過濾掉的日子，不能隨意更動；只針對 available_days 內的選項進行更新
+                if d in available_days:
+                    if d in selected_user_off:
+                        if current_user not in st.session_state.daily_leaves[d]:
+                            st.session_state.daily_leaves[d].append(current_user)
+                    else:
+                        if current_user in st.session_state.daily_leaves[d]:
+                            st.session_state.daily_leaves[d].remove(current_user)
             
             st.success(f"🎉 成功！【{current_user}】在 {year_num}年{selected_month_str} 總共排了 {len(selected_user_off)} 天假。")
             st.rerun()
 
     st.markdown("---")
     st.subheader("🤝 跨部門代班與同組換班協調機制")
-    st.markdown("如果同組人員（如安與琪）想在同一天休假，或需與暖惒部門協調代班：")
+    st.markdown("如果想和同組夥伴在同一天休假，需指派暖惒部門支援代班：")
     
     with st.form("substitute_form"):
-        target_date = st.selectbox("選擇需要協調/代班的日期", target_month_days, key="sub_date")
+        target_date = st.selectbox("選擇需要協調/代班的日期", all_month_days, key="sub_date")
         
         current_day_off = st.session_state.daily_leaves.get(target_date, [])
         st.write(f"📅 **{target_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
@@ -225,7 +255,7 @@ with col2:
             else:
                 reply = f"❌ 找不到 {date_key} 的假表記錄。"
         else:
-            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。系統運作正常，您可以隨時使用排假與代班協調功能！"
+            reply = f"🤖 AI Agent 已收到您的指令：「{user_input}」。系統運作正常，同組互斥過濾機制已啟動！"
 
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
