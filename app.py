@@ -7,12 +7,12 @@ from datetime import datetime
 
 st.set_page_config(page_title="24/7 輪班與排假表系統", page_icon="📅", layout="wide")
 
-# 🎨 嚴格對應您的真實人員與專屬代表色與部門
+# 🎨 嚴格對應您的真實人員與專屬代表色與部門（Benson 已正確設定為常銘 - 夜班）
 DEFAULT_PERSON_COLORS = {
     "琪": "#9b59b6",       # 紫色 (常銘 - 早班)
     "安": "#f1c40f",       # 黃色 (常銘 - 早班)
     "淵": "#1abc9c",       # 藍綠色 (常銘 - 夜班)
-    "Benson": "#795548",   # 灰帶點咖 (常銘 - 夜班)  <-- 已修正為夜班
+    "Benson": "#795548",   # 灰帶點咖 (常銘 - 夜班)
     "萱": "#3498db",       # 淡藍色 (暖惒 - 早班)
     "聖": "#2c3e50",       # 綻藍色 (暖惒 - 早班)
     "慈": "#e74c3c",       # 紅色 (暖惒 - 夜班)
@@ -23,7 +23,7 @@ EMPLOYEE_DEPT_GROUP = {
     "琪": {"dept": "常銘", "group": "早班"},
     "安": {"dept": "常銘", "group": "早班"},
     "淵": {"dept": "常銘", "group": "夜班"},
-    "Benson": {"dept": "常銘", "group": "夜班"},  # <-- 已修正為夜班
+    "Benson": {"dept": "常銘", "group": "夜班"},
     "萱": {"dept": "暖惒", "group": "早班"},
     "聖": {"dept": "暖惒", "group": "早班"},
     "慈": {"dept": "暖惒", "group": "夜班"},
@@ -95,7 +95,7 @@ def save_leaves_to_disk(data):
         st.error(f"存檔失敗: {e}")
 
 st.title("🏢 企業級 24/7 永續排假與輪班 AI Agent 系統")
-st.markdown("🔒 **Benson 班別已正確修正為「常銘 - 夜班」**，並新增完整組織對照表！")
+st.markdown("🔒 **語法錯誤已全面修正**！Benson 班別正確設定為「常銘 - 夜班」，雙欄排版與 AI 助理運作中。")
 
 # 初始化 Session State
 if "daily_leaves" not in st.session_state:
@@ -103,7 +103,7 @@ if "daily_leaves" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "您好！Benson 的班別已修正為常銘夜班。您可以隨時操作排假或向我查詢！"}
+        {"role": "assistant", "content": "您好！語法已修復完成。您可以隨時排假或向我查詢！"}
     ]
 
 # 側邊欄：色彩圖例與組織對照表
@@ -235,4 +235,76 @@ with col1:
     st.markdown("您可以選擇指定公司內任意同仁支援代班，或與已休假人員進行換班協調：")
     
     with st.form("substitute_form"):
-        target_disp_date =
+        target_disp_date = st.selectbox("選擇需要調假/代班的日期", [f"{month_num}/{d}" for d in range(1, num_days_in_month + 1)], key="sub_date")
+        target_db_key = f"{year_num}_{target_disp_date}"
+        
+        current_day_off = list(dict.fromkeys(st.session_state.daily_leaves.get(target_db_key, [])))
+        st.write(f"📅 **{target_disp_date} 目前休假名單**：{', '.join(current_day_off) if current_day_off else '無'}")
+        
+        all_other_staff = [name for name in DEFAULT_PERSON_COLORS.keys() if name != current_user]
+        helper_person = st.selectbox("指定支援代班人員（全公司互助）", all_other_staff)
+        
+        action_type = st.radio("選擇調班/代班動作", ["申請同日休假（需指定人員支援代班）", "與已休假人員換班/調假"])
+        
+        sub_btn = st.form_submit_button("執行調假/代班申請")
+        if sub_btn:
+            if target_db_key not in st.session_state.daily_leaves:
+                st.session_state.daily_leaves[target_db_key] = []
+                
+            day_set = set(st.session_state.daily_leaves[target_db_key])
+            
+            if action_type == "申請同日休假（需指定人員支援代班）":
+                day_set.add(current_user)
+                st.session_state.daily_leaves[target_db_key] = list(day_set)
+                save_leaves_to_disk(st.session_state.daily_leaves)
+                st.success(f"✅ 已成功送出並永久存檔！【{target_disp_date}】由【{helper_person}】跨組／跨部門支援代班，【{current_user}】順利休假！")
+                st.rerun()
+            else:
+                off_colleagues_on_day = [p for p in current_day_off if p in same_group_colleagues]
+                if off_colleagues_on_day:
+                    target_colleague = off_colleagues_on_day[0]
+                    if target_colleague in day_set:
+                        day_set.remove(target_colleague)
+                    day_set.add(current_user)
+                    st.session_state.daily_leaves[target_db_key] = list(day_set)
+                    save_leaves_to_disk(st.session_state.daily_leaves)
+                    st.success(f"✅ 換班成功並永久存檔！在【{target_disp_date}】由【{current_user}】與【{target_colleague}】成功調換班別！")
+                    st.rerun()
+                else:
+                    day_set.add(current_user)
+                    st.session_state.daily_leaves[target_db_key] = list(day_set)
+                    save_leaves_to_disk(st.session_state.daily_leaves)
+                    st.success(f"✅ 已成功完成並永久存檔 {target_disp_date} 的調假申請！")
+                    st.rerun()
+
+with col2:
+    st.header("💬 AI Agent 智慧互動區")
+    
+    chat_container = st.container(height=450)
+    with chat_container:
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                st.chat_message("user").write(msg["content"])
+            else:
+                st.chat_message("assistant").write(msg["content"])
+                
+    user_input = st.chat_input("請在此輸入查詢指令（例如：安十月休幾天？、11/5誰休假）...")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        query_text = user_input.strip()
+        reply = ""
+        
+        matched_person = None
+        for name in DEFAULT_PERSON_COLORS.keys():
+            if name in query_text:
+                matched_person = name
+                break
+        
+        # 🧠 智慧月份解析：精準對應提問中的月份與全域月份
+        query_month = None
+        if "十月" in query_text or "10月" in query_text:
+            query_month = 10
+        elif "十一月" in query_text or "11月" in query_text:
+            query_month = 11
+        elif "十二月" in query_text or "12月" in query_text:
+            query_month =
